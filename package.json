@@ -1,0 +1,17 @@
+{
+  "name": "order-2025-system",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -p 3000 -s",
+    "build": "echo 'Build tidak diperlukan untuk Alpine.js. Gunakan npm run dev untuk development.'",
+    "preview": "npx serve dist -p 4172"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "serve": "^14.2.5"
+  }
+}

@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistem Manajemen Order - SIMANDER">
+  <title>SIMANDER - Sistem Manajemen Order</title>
+  <script src="/src/tailwind.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/src/app.js"></script>
+  <script src="/src/alpine.js" defer></script>
+    <style>
+      .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; }
+      @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+      .main-wrapper { position: relative; min-height: 100vh; }
+      aside { will-change: transform, width; backface-visibility: hidden; }
+    </style>
+</head>
+<body class="bg-slate-50">
+  <div id="app" x-data="app()" x-init="init()">
+    
+    <!-- Login Page -->
+    <template x-if="!isAuthenticated">
+      <div class="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-br from-sky-50 via-white to-emerald-50 relative overflow-hidden">
+        <div class="pointer-events-none absolute -top-20 -left-20 h-60 w-60 rounded-full bg-sky-200/50 blur-3xl"></div>
+        <div class="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-emerald-200/50 blur-3xl"></div>
+        <div class="w-full max-w-lg relative">
+          <div class="text-center mb-10">
+            <div class="w-28 h-28 bg-white rounded-3xl shadow-lg border border-slate-100 flex items-center justify-center mx-auto mb-5">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Seal_of_Pontianak.svg/1200px-Seal_of_Pontianak.svg.png" alt="Logo Kota Pontianak" class="w-20 h-20 object-contain drop-shadow">
+            </div>
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">SIMANDER</h1>
+            <p class="text-slate-500 mt-2">Sistem Manajemen Order</p>
+          </div>
+          <div class="bg-white/90 backdrop-blur rounded-3xl shadow-2xl border border-slate-200/70 p-8">
+            <h2 class="text-xl font-semibold text-slate-900 mb-6">Masuk ke Akun</h2>
+            <form @submit.prevent="handleLogin">
+              <div class="space-y-5">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                  <input x-model="loginForm.email" type="email" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="admin@dlh.com" required>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                  <input x-model="loginForm.password" type="password" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="........" required>
+                </div>
+              </div>
+              <div x-show="loginError" class="mt-5 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-600" x-text="loginError"></p>
+              </div>
+              <button type="submit" class="w-full mt-7 px-4 py-3 bg-sky-600 text-white rounded-xl hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 text-base font-semibold" :disabled="authLoading">
+                <span x-show="!authLoading">Masuk</span>
+                <span x-show="authLoading">Memuat...</span>
+              </button>
+              <button type="button" @click="quickLogin()" class="w-full mt-3 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-300 text-sm">
+                Quick Login (Demo)
+              </button>
+            </form>
+          </div>
+          <div class="text-center text-sm text-slate-500 mt-6">
+            <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-white/80 border border-slate-200 rounded-full shadow-sm">Demo: admin@dlh.com / admin</span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Main App -->
+    <template x-if="isAuthenticated">
+      <div class="min-h-screen bg-slate-50 main-wrapper">
+        <!-- Sidebar -->
+        <aside :class="['fixed inset-y-0 left-0 z-30 flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out', sidebarCollapsed ? 'w-16' : 'w-64', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']">
+          <div class="flex items-center h-16 px-4 border-b border-slate-200">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center shadow-md">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Seal_of_Pontianak.svg/1200px-Seal_of_Pontianak.svg.png" alt="Logo Kota Pontianak" class="w-7 h-7 object-contain">
+              </div>
+              <span x-show="!sidebarCollapsed" class="font-bold text-slate-900 text-lg">SIMANDER</span>
+            </div>
+          </div>
+          <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <a href="#" @click.prevent="navigate('/')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+              <span x-show="!sidebarCollapsed">Dashboard</span>
+            </a>
+            <a href="#" @click.prevent="navigate('/orders')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/orders' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+              <span x-show="!sidebarCollapsed">Orders</span>
+            </a>
+            <a href="#" @click.prevent="navigate('/vendors')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/vendors' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              <span x-show="!sidebarCollapsed">Vendors</span>
+            </a>
+            <a href="#" @click.prevent="navigate('/subkegiatan')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/subkegiatan' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+              <span x-show="!sidebarCollapsed">Subkegiatan</span>
+            </a>
+            <template x-if="isAdmin">
+              <a href="#" @click.prevent="navigate('/users')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/users' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                <span x-show="!sidebarCollapsed">Users</span>
+              </a>
+            </template>
+            <template x-if="isAdmin">
+              <a href="#" @click.prevent="navigate('/backup')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/backup' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M4 7a6 2 0 0112 0v6a6 2 0 01-12 0V7z"/><path d="M4 7a6 2 0 0012 0"/></svg>
+                <span x-show="!sidebarCollapsed">Backup &amp; Import</span>
+              </a>
+            </template>
+            <a href="#" @click.prevent="navigate('/feedback')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/feedback' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M18 10c0 3.866-3.582 7-8 7a8.86 8.86 0 01-3.233-.6L2 18l1.6-3.2A6.937 6.937 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"/></svg>
+              <span x-show="!sidebarCollapsed">Kritik &amp; Saran</span>
+            </a>
+          </nav>
+          <div class="p-3 border-t border-slate-200">
+            <button @click="sidebarCollapsed = !sidebarCollapsed" :class="['w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-100 transition-colors', sidebarCollapsed ? 'justify-center' : '']">
+              <svg class="w-5 h-5 transition-transform duration-200" :class="{ 'rotate-180': sidebarCollapsed }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              <span x-show="!sidebarCollapsed">Collapse</span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div :class="['lg:pl-64 transition-all duration-300 ease-in-out min-h-screen', sidebarCollapsed ? 'lg:pl-16' : '']">
+          <!-- Header -->
+          <header class="sticky top-0 z-20 bg-white border-b border-slate-200">
+            <div class="flex items-center justify-between h-16 px-4 sm:px-6">
+              <div class="flex items-center gap-4">
+                <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <div class="hidden sm:block">
+                  <h1 class="text-xl font-semibold text-slate-900" x-text="pageTitle"></h1>
+                  <p x-show="pageSubtitle" class="text-sm text-slate-500" x-text="pageSubtitle"></p>
+                </div>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-0 bg-white border border-slate-200 rounded-lg overflow-hidden">
+                  <button @click="navigate('/orders/new')" class="px-4 py-2 bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    Order Baru
+                  </button>
+                  <button @click="navigate('/vendors/new')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border-l border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    Vendor Baru
+                  </button>
+                  <template x-if="isAdmin">
+                    <button @click="navigate('/users/new')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border-l border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                      User Baru
+                    </button>
+                  </template>
+                </div>
+                <div class="relative" x-data="{ dropdownOpen: false }">
+                  <button @click="dropdownOpen = !dropdownOpen" class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                    <div class="w-8 h-8 bg-sky-100 rounded-full flex items-center justify-center">
+                      <span class="text-sm font-medium text-sky-700" x-text="userInitials"></span>
+                    </div>
+                    <div class="hidden md:block text-left">
+                      <p class="text-sm font-medium text-slate-900" x-text="user?.name || 'User'"></p>
+                      <p class="text-xs text-slate-500" x-text="user?.email"></p>
+                    </div>
+                  </button>
+                  <div x-show="dropdownOpen" @click.away="dropdownOpen = false" class="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50">
+                    <button @click="handleLogout" class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                      <span>Keluar</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <!-- Page Content -->
+          <main class="p-4 sm:p-6 lg:p-8">
+            <!-- Dashboard -->
+            <template x-if="currentPage === '/'">
+              <div class="space-y-6" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                  <div class="flex items-center justify-between">
+                    <div><p class="text-sm text-slate-500">Total Order</p><p class="text-2xl font-bold text-slate-900" x-text="stats.total || 0"></p></div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/></svg>
+                    </div>
+                  </div>
+                  <p class="text-sm text-blue-600 mt-2">Semua order</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                  <div class="flex items-center justify-between">
+                    <div><p class="text-sm text-slate-500">Pending</p><p class="text-2xl font-bold text-slate-900" x-text="stats.pending || 0"></p></div>
+                    <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-amber-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                    </div>
+                  </div>
+                  <p class="text-sm text-amber-600 mt-2">Menunggu approval</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                  <div class="flex items-center justify-between">
+                    <div><p class="text-sm text-slate-500">Disetujui</p><p class="text-2xl font-bold text-slate-900" x-text="stats.approved || 0"></p></div>
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-emerald-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    </div>
+                  </div>
+                  <p class="text-sm text-emerald-600 mt-2">Sudah disetujui</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                  <div class="flex items-center justify-between">
+                    <div><p class="text-sm text-slate-500">Total Nilai</p><p class="text-2xl font-bold text-slate-900" x-text="formatCurrency(stats.totalValue)"></p></div>
+                    <div class="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center">
+                      <svg class="w-6 h-6 text-sky-600" viewBox="0 0 20 20" fill="currentColor"><path d="M8 10a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M4 8V6a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2zm4 4a2 2 0 100-4 2 2 0 000 4zm-2 4a2 2 0 114 0 2 2 0 01-4 0z" clip-rule="evenodd"/></svg>
+                    </div>
+                  </div>
+                  <p class="text-sm text-sky-600 mt-2">Seluruh order</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                  <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between p-4 border-b border-slate-200">
+                      <h3 class="font-semibold text-slate-900">Order Terbaru</h3>
+                      <button @click="navigate('/orders')" class="text-sm text-sky-600 hover:text-sky-700 font-medium">Lihat Semua</button>
+                    </div>
+                    <div x-show="loading" class="p-4 space-y-3">
+                      <template x-for="i in 5"><div class="flex items-center gap-4 p-3 rounded-lg"><div class="skeleton h-10 w-10 rounded-lg"></div><div class="flex-1 space-y-2"><div class="skeleton h-4 w-1/3"></div><div class="skeleton h-3 w-1/2"></div></div></div></template>
+                    </div>
+                    <div x-show="!loading && recentOrders.length === 0" class="p-8 text-center text-slate-500">
+                      <p>Belum ada order</p>
+                      <button @click="navigate('/orders/new')" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 mt-3">Buat Order Pertama</button>
+                    </div>
+                    <div x-show="!loading && recentOrders.length > 0" class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                      <template x-for="order in recentOrders" :key="order.id"><div @click="navigate('/orders/'+order.id)" class="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <svg class="w-5 h-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <p class="font-medium text-slate-900 truncate" x-text="order.shopping_name"></p>
+                          <p class="text-sm text-slate-500 truncate" x-text="order.vendor_name || 'Vendor tidak ditemukan'"></p>
+                        </div>
+                        <div class="flex-shrink-0 text-right">
+                          <p class="font-medium text-slate-900 text-sm" x-text="formatCurrency(order.contract_value)"></p>
+                          <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="{
+                            'bg-slate-100 text-slate-700': order.status === 'draft',
+                            'bg-amber-100 text-amber-700': order.status === 'pending',
+                            'bg-emerald-100 text-emerald-700': order.status === 'approved',
+                            'bg-sky-100 text-sky-700': order.status === 'completed'
+                          }" x-text="order.status"></span>
+                        </div>
+                      </div></template>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="p-4 border-b border-slate-200"><h3 class="font-semibold text-slate-900">Quick Actions</h3></div>
+                    <div class="p-4 space-y-3">
+                      <button @click="navigate('/orders/new')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Order Baru</button>
+                      <button @click="navigate('/orders')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Daftar Order</button>
+                      <button @click="navigate('/vendors')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Manage Vendor</button>
+                    </div>
+                    <div class="p-4 pt-4 border-t border-slate-200">
+                      <h4 class="text-sm font-medium text-slate-900 mb-3">Status Overview</h4>
+                      <div class="space-y-2">
+                        <div class="flex items-center justify-between text-sm"><span class="text-slate-600">Draft</span><span class="font-medium text-slate-900" x-text="stats.draft || 0"></span></div>
+                        <div class="flex items-center justify-between text-sm"><span class="text-slate-600">Pending</span><span class="font-medium text-slate-900" x-text="stats.pending || 0"></span></div>
+                        <div class="flex items-center justify-between text-sm"><span class="text-slate-600">Approved</span><span class="font-medium text-slate-900" x-text="stats.approved || 0"></span></div>
+                        <div class="flex items-center justify-between text-sm"><span class="text-slate-600">Completed</span><span class="font-medium text-slate-900" x-text="stats.completed || 0"></span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Orders List -->
+            <template x-if="currentPage === '/orders'">
+              <div class="space-y-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="flex flex-col sm:flex-row gap-4 justify-between">
+                <div class="flex-1 max-w-md">
+                  <input x-model="orderSearch" type="text" placeholder="Cari order..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" @input.debounce.300ms="loadOrders()">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <select x-model="orderStatusFilter" @change="loadOrders()" class="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 w-40">
+                    <option value="">Semua Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  <div class="relative">
+                    <select x-model="orderSortBy" @change="loadOrders()" class="px-3 py-2 pr-8 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 w-48 appearance-none bg-white">
+                      <option value="created_at">Terbaru</option>
+                      <option value="order_date">Tanggal</option>
+                      <option value="order_number">No. Order</option>
+                      <option value="status">Status</option>
+                      <option value="shopping_name">Nama Belanja</option>
+                      <option value="contract_value">Nilai</option>
+                      <option value="updated_at">Diperbaharui</option>
+                    </select>
+                    <button @click="orderSortDir = orderSortDir === 'asc' ? 'desc' : 'asc'; loadOrders()" class="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-1 hover:bg-slate-100 rounded">
+                      <svg x-show="orderSortDir === 'desc'" class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                      <svg x-show="orderSortDir === 'asc'" class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                    </button>
+                  </div>
+                  <button type="button" @click="openDownloadAllModal" :disabled="downloadAllLoading" class="px-3 py-2 rounded-lg text-sm font-medium text-white" :class="downloadAllLoading ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'">
+                    <span x-show="!downloadAllLoading">Download Semua Excel</span>
+                    <span x-show="downloadAllLoading" class="inline-flex items-center gap-2">
+                      <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                      </svg>
+                      Memproses...
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full">
+                  <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('order_number')">No. Order <span x-html="getSortIcon('order_number')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('order_date')">Tanggal <span x-html="getSortIcon('order_date')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('shopping_name')">Nama Belanja <span x-html="getSortIcon('shopping_name')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Subkegiatan</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('vendor_name')">Vendor <span x-html="getSortIcon('vendor_name')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('contract_value')">Nilai <span x-html="getSortIcon('contract_value')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('status')">Status <span x-html="getSortIcon('status')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('updated_at')">Diperbaharui <span x-html="getSortIcon('updated_at')"></span></th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Diedit oleh</th>
+                      <th class="px-4 py-3 text-right text-sm font-medium text-slate-600">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <template x-if="ordersLoading"><tr><td colspan="10" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
+                    <template x-if="!ordersLoading && orders.length === 0"><tr><td colspan="10" class="px-4 py-8 text-center text-slate-500"><p>Belum ada order</p><button @click="navigate('/orders/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Buat Order Pertama</button></td></tr></template>
+                      <template x-for="order in orders" :key="order.id"><tr class="hover:bg-slate-50 cursor-pointer" @click="viewOrder(order)">
+                        <td class="px-4 py-3 text-sm font-medium text-slate-900" x-text="formatOrderNumber(order.order_number)"></td>
+                        <td class="px-4 py-3 text-sm text-slate-600" x-text="formatDate(order.order_date)"></td>
+                        <td class="px-4 py-3 text-sm text-slate-900" x-text="order.shopping_name"></td>
+                        <td class="px-4 py-3 text-sm text-slate-600" x-text="order.subkegiatan_name || '-'"></td>
+                        <td class="px-4 py-3 text-sm text-slate-600" x-text="order.vendor_name"></td>
+                       <td class="px-4 py-3 text-sm font-medium text-slate-900" x-text="formatCurrency(order.contract_value)"></td>
+                       <td class="px-4 py-3"><span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium" :class="{
+                         'bg-slate-100 text-slate-700': order.status === 'draft',
+                         'bg-amber-100 text-amber-700': order.status === 'pending',
+                         'bg-emerald-100 text-emerald-700': order.status === 'approved',
+                         'bg-sky-100 text-sky-700': order.status === 'completed'
+                       }" x-text="order.status"></span></td>
+                       <td class="px-4 py-3 text-sm text-slate-600" x-text="formatDateTime(order.updated_at)"></td>
+                       <td class="px-4 py-3 text-sm text-slate-600" x-text="order.updated_by || '-'"></td>
+                        <td class="px-4 py-3 text-right">
+                          <div class="inline-flex flex-wrap justify-end gap-2">
+                            <button @click.stop="viewOrder(order)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                              Lihat
+                            </button>
+                            <button x-show="canEditOrder(order)" @click.stop="editOrder(order)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.5 2.5 0 013.536 3.536L7.5 19.92l-4 1 1-4 12.362-13.433z"/></svg>
+                              Edit
+                            </button>
+                            <button x-show="canDeleteOrder(order)" @click.stop="deleteOrder(order.id)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z"/></svg>
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                    </tr></template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- Vendors List -->
+            <template x-if="currentPage === '/vendors'">
+              <div class="space-y-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="flex flex-col sm:flex-row gap-4 justify-between">
+                <div class="flex-1 max-w-md">
+                  <input x-model="vendorSearch" type="text" placeholder="Cari vendor..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" @input.debounce.300ms="loadVendors()">
+                </div>
+                <button @click="navigate('/vendors/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700">Vendor Baru</button>
+              </div>
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full">
+                  <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Nama Vendor</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Email</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Telepon</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+                      <th class="px-4 py-3 text-right text-sm font-medium text-slate-600">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <template x-if="vendorsLoading"><tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
+                    <template x-if="!vendorsLoading && vendors.length === 0"><tr><td colspan="5" class="px-4 py-8 text-center text-slate-500"><p>Belum ada vendor</p><button @click="navigate('/vendors/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Tambah Vendor Pertama</button></td></tr></template>
+                    <template x-for="vendor in vendors" :key="vendor.id"><tr class="hover:bg-slate-50">
+                      <td class="px-4 py-3"><p class="text-sm font-medium text-slate-900" x-text="vendor.name"></p><p x-show="vendor.npwp" class="text-xs text-slate-500" x-text="'NPWP: '+vendor.npwp"></p></td>
+                      <td class="px-4 py-3 text-sm text-slate-600" x-text="vendor.email || '-'"></td>
+                      <td class="px-4 py-3 text-sm text-slate-600" x-text="vendor.phone || '-'"></td>
+                      <td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="vendor.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'" x-text="vendor.status"></span></td>
+                      <td class="px-4 py-3 text-right">
+                        <div class="inline-flex flex-wrap justify-end gap-2">
+                          <button @click="editVendor(vendor)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.5 2.5 0 013.536 3.536L7.5 19.92l-4 1 1-4 12.362-13.433z"/></svg>
+                            Edit
+                          </button>
+                          <button @click="deleteVendor(vendor.id)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z"/></svg>
+                            Hapus
+                          </button>
+                        </div>
+                      </td>
+                    </tr></template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- Order Form -->
+            <template x-if="currentPage === '/orders/new' || (currentPage.startsWith('/orders/') && currentPage !== '/orders' && !currentPage.includes('/new'))">
+              <div class="max-w-6xl mx-auto" x-init="
+                if (currentPage === '/orders/new') {
+                  isEditOrder = false;
+                  order_number = getNextOrderNumber();
+                  orderForm = {
+                    order_number: order_number,
+                    order_date: new Date().toISOString().split('T')[0],
+                    shopping_name: '',
+                    contract_number: '',
+                    vendor_id: null,
+                    contract_value: 0,
+                    status: 'draft',
+                    notes: '',
+                    paket: { id_paket: '', no_surat_pesanan: '' },
+                    kontrak: [{ no: '', kode_kontrak: '', kode_bidang: '', bulan: '', tahun: '', tgl: '', nilai_kwitansi: 0 }],
+                    invoice: [{ no: '', tgl: '', nilai_invoice: 0 }],
+                    drive_link: '',
+                    ba: [{ no: '', kode_ba: '', kode_bidang: '', bulan: '', tahun: '', tgl: '', nilai: 0 }],
+                    subkegiatan_id: null
+                  };
+                  vendorSearchInput = '';
+                  selectedVendor = null;
+                  subkegiatanSearchInput = '';
+                  selectedSubkegiatan = null;
+                  filteredSubkegiatans = [];
+                  showSubkegiatanDropdown = false;
+                  contractValueDisplay = '';
+                  orderTab = 'paket';
+                } else {
+                  // Edit mode - format the display value
+                  contractValueDisplay = formatNumber(orderForm.contract_value || 0);
+                }
+              " x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="mb-6">
+                <button @click="navigate('/orders')" class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 mb-4">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                  Kembali ke Daftar Order
+                </button>
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h1 class="text-2xl font-bold text-slate-900" x-text="isEditOrder ? 'Edit Order' : 'Order Baru'"></h1>
+                    <p class="text-slate-500 mt-1" x-text="isEditOrder ? 'Perbarui informasi order pengadaan' : 'Buat order pengadaan baru'"></p>
+                  </div>
+                  <div x-show="isEditOrder" class="text-sm text-slate-500 md:text-right">
+                    <div class="grid grid-cols-3 gap-x-6 gap-y-1">
+                      <div class="font-medium text-slate-700">Pembuat Order</div>
+                      <div class="font-medium text-slate-700">Pengedit Order</div>
+                      <div class="font-medium text-slate-700">Terakhir Update</div>
+                      <div x-text="orderCreatorName"></div>
+                      <div x-text="orderEditorName"></div>
+                      <div x-text="orderLastUpdatedAt"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <form @submit.prevent="saveOrder" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Informasi Order</h3>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">No. Order</label><input :value="formatOrderNumber(orderForm.order_number)" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg bg-slate-50" disabled></div>
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Tanggal <span class="text-red-500">*</span></label><input x-model="orderForm.order_date" type="date" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" required></div>
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">No. Kontrak</label><input x-model="orderForm.contract_number" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Nama Belanja <span class="text-red-500">*</span></label><input x-model="orderForm.shopping_name" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan nama belanja..." required></div>
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Subkegiatan</label>
+                        <div class="relative">
+                          <input x-model="subkegiatanSearchInput" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Cari subkegiatan..." @input.debounce.300ms="searchSubkegiatans()" @focus="showSubkegiatanDropdown = true">
+                          <div x-show="showSubkegiatanDropdown && filteredSubkegiatans.length > 0" class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
+                            <template x-for="subkegiatan in filteredSubkegiatans" :key="subkegiatan.id">
+                              <button type="button" class="w-full px-4 py-2 text-left hover:bg-slate-50" @click="selectSubkegiatan(subkegiatan)">
+                                <p class="font-medium text-slate-900" x-text="subkegiatan.subkegiatan"></p>
+                                <p class="text-xs text-slate-500" x-text="subkegiatan.ppk || '-'" ></p>
+                              </button>
+                            </template>
+                          </div>
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">Ketikkan lalu pilih vendor/kegiatan</p>
+                        <div x-show="orderForm.subkegiatan_id" class="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                          <p class="font-medium text-emerald-800 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span x-text="selectedSubkegiatan?.subkegiatan || subkegiatanSearchInput"></span>
+                          </p>
+                          <p class="text-xs text-emerald-700 mt-1" x-text="selectedSubkegiatan?.ppk || '-'" ></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Vendor & Nilai Kontrak</h3>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Vendor <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                          <input x-model="vendorSearchInput" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Cari vendor..." @input.debounce.300ms="searchVendors()" @focus="showVendorDropdown = true">
+                          <div x-show="showVendorDropdown && filteredVendors.length > 0" class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
+                            <template x-for="vendor in filteredVendors" :key="vendor.id"><button type="button" class="w-full px-4 py-2 text-left hover:bg-slate-50" @click="selectVendor(vendor)"><p class="font-medium text-slate-900" x-text="vendor.name"></p></button></template>
+                          </div>
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">Ketikkan lalu pilih vendor/kegiatan</p>
+                        <div x-show="orderForm.vendor_id" class="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                          <p class="font-medium text-emerald-800 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span x-text="selectedVendor?.name"></span>
+                          </p>
+                        </div>
+                      </div>
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Nilai Kontrak (Rp)</label><input 
+                          x-model="contractValueDisplay" 
+                          type="text" 
+                          inputmode="numeric"
+                          class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                          @input="orderForm.contract_value = parseNumber($event.target.value)"
+                          @blur="contractValueDisplay = formatNumber(orderForm.contract_value)"
+                          placeholder="0"
+                        ></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Detail Dokumen</h3>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" @click="setOrderTab('paket')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderTab === 'paket' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">ID Paket</button>
+                      <button type="button" @click="setOrderTab('kontrak')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderTab === 'kontrak' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">Kontrak</button>
+                      <button type="button" @click="setOrderTab('invoice')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderTab === 'invoice' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">Invoice</button>
+                      <button type="button" @click="setOrderTab('drive')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderTab === 'drive' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">Link Drive</button>
+                      <button type="button" @click="setOrderTab('ba')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderTab === 'ba' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">BA-STB/SPPB/BTPB</button>
+                    </div>
+                    <div x-show="orderTab === 'paket'" class="space-y-4">
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">ID Paket/No Surat Pesanan</label>
+                        <input x-model="orderForm.paket.id_paket" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan ID paket atau no surat pesanan..." @input="orderForm.paket.no_surat_pesanan = $event.target.value">
+                      </div>
+                    </div>
+                    <div x-show="orderTab === 'kontrak'" class="space-y-4">
+                      <div class="flex justify-end">
+                        <button type="button" @click="addKontrakRow" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">Tambah Kontrak</button>
+                      </div>
+                      <div class="overflow-x-auto">
+                        <table class="w-full border border-slate-200">
+                          <thead class="bg-slate-50">
+                            <tr>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode Kontrak</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode Bidang</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Kwitansi</th>
+                              <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-200">
+                            <template x-for="(item, index) in orderForm.kontrak" :key="index">
+                              <tr>
+                                <td class="p-2"><input x-model="item.no" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.kode_kontrak" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.kode_bidang" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.bulan" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.tahun" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.tgl" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model.number="item.nilai_kwitansi" type="number" min="0" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2 text-right"><button type="button" @click="removeKontrakRow(index)" class="text-xs font-medium text-red-600 hover:text-red-700">Hapus</button></td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div x-show="orderTab === 'invoice'" class="space-y-4">
+                      <div class="flex justify-end">
+                        <button type="button" @click="addInvoiceRow" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">Tambah Invoice</button>
+                      </div>
+                      <div class="overflow-x-auto">
+                        <table class="w-full border border-slate-200">
+                          <thead class="bg-slate-50">
+                            <tr>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Invoice</th>
+                              <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-200">
+                            <template x-for="(item, index) in orderForm.invoice" :key="index">
+                              <tr>
+                                <td class="p-2"><input x-model="item.no" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.tgl" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model.number="item.nilai_invoice" type="number" min="0" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2 text-right"><button type="button" @click="removeInvoiceRow(index)" class="text-xs font-medium text-red-600 hover:text-red-700">Hapus</button></td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div x-show="orderTab === 'drive'" class="space-y-4">
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Link Google Drive</label><input x-model="orderForm.drive_link" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="https://drive.google.com/"></div>
+                    </div>
+                    <div x-show="orderTab === 'ba'" class="space-y-4">
+                      <div class="flex justify-end">
+                        <button type="button" @click="addBaRow" class="px-3 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">Tambah BA</button>
+                      </div>
+                      <div class="overflow-x-auto">
+                        <table class="w-full border border-slate-200">
+                          <thead class="bg-slate-50">
+                            <tr>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode BA</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode Bidang</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai</th>
+                              <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-200">
+                            <template x-for="(item, index) in orderForm.ba" :key="index">
+                              <tr>
+                                <td class="p-2"><input x-model="item.no" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.kode_ba" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.kode_bidang" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.bulan" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.tahun" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model="item.tgl" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input x-model.number="item.nilai" type="number" min="0" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2 text-right"><button type="button" @click="removeBaRow(index)" class="text-xs font-medium text-red-600 hover:text-red-700">Hapus</button></td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Status & Catatan</h3>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                        <select x-model="orderForm.status" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                          <option value="draft">Draft</option>
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </div>
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Catatan</label><textarea x-model="orderForm.notes" rows="3" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Tambahkan catatan..."></textarea></div>
+                    </div>
+                  </div>
+                </div>
+                <div x-show="formError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="formError"></p></div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                  <button type="button" @click="navigate('/orders')" class="px-5 py-2.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors">Batal</button>
+                  <button type="submit" class="px-5 py-2.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium transition-colors flex items-center gap-2 shadow-sm" :disabled="formLoading">
+                    <svg x-show="!formLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <svg x-show="formLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span x-text="isEditOrder ? 'Simpan Perubahan' : 'Simpan Order'"></span>
+                  </button>
+                </div>
+              </form>
+            </div>
+            </template>
+
+            <!-- Vendor Form -->
+            <template x-if="currentPage === '/vendors/new' || (currentPage.startsWith('/vendors/') && currentPage !== '/vendors' && !currentPage.includes('/new'))">
+              <div class="max-w-2xl" x-init="
+                if (currentPage === '/vendors/new') {
+                  isEditVendor = false;
+                  vendorForm = {
+                    name: '',
+                    npwp: '',
+                    email: '',
+                    phone: '',
+                    address: '',
+                    status: 'active'
+                  };
+                  formError = '';
+                }
+              " x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="flex items-center gap-4 mb-6">
+                <button @click="navigate('/vendors')" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">Kembali</button>
+                <div><h1 class="text-xl font-semibold text-slate-900" x-text="isEditVendor ? 'Edit Vendor' : 'Vendor Baru'"></h1><p class="text-sm text-slate-500">Tambah data vendor</p></div>
+              </div>
+              <form @submit.prevent="saveVendor" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="p-4 border-b border-slate-200"><h3 class="font-semibold text-slate-900">Informasi Vendor</h3></div>
+                  <div class="p-4 space-y-4">
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Nama <span class="text-red-500">*</span></label><input x-model="vendorForm.name" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500" required></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">NPWP</label><input x-model="vendorForm.npwp" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Email</label><input x-model="vendorForm.email" type="email" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Telepon</label><input x-model="vendorForm.phone" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Alamat</label><textarea x-model="vendorForm.address" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"></textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Status</label><select x-model="vendorForm.status" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"><option value="active">Aktif</option><option value="inactive">Tidak Aktif</option></select></div>
+                  </div>
+                </div>
+                <div x-show="formError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="formError"></p></div>
+                <div class="flex justify-end gap-3">
+                  <button type="button" @click="navigate('/vendors')" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">Batal</button>
+                  <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700" :disabled="formLoading"><span x-show="!formLoading" x-text="isEditVendor ? 'Simpan' : 'Simpan Vendor'"></span><span x-show="formLoading">Memuat...</span></button>
+                </div>
+              </form>
+            </div>
+            </template>
+
+            <!-- Users List -->
+            <template x-if="currentPage === '/users' && isAdmin">
+              <div class="space-y-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="flex flex-col sm:flex-row gap-4 justify-between">
+                <div class="flex-1 max-w-md">
+                  <input x-model="userSearch" type="text" placeholder="Cari user..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" @input.debounce.300ms="loadUsers()">
+                </div>
+                <button @click="navigate('/users/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700">User Baru</button>
+              </div>
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full">
+                  <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Nama</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Email</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Role</th>
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+                      <th class="px-4 py-3 text-right text-sm font-medium text-slate-600">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <template x-if="usersLoading"><tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
+                    <template x-if="!usersLoading && users.length === 0"><tr><td colspan="5" class="px-4 py-8 text-center text-slate-500"><p>Belum ada user</p><button @click="navigate('/users/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Tambah User Pertama</button></td></tr></template>
+                    <template x-for="user in users" :key="user.id"><tr class="hover:bg-slate-50">
+                      <td class="px-4 py-3 text-sm font-medium text-slate-900" x-text="user.name"></td>
+                      <td class="px-4 py-3 text-sm text-slate-600" x-text="user.email"></td>
+                      <td class="px-4 py-3 text-sm text-slate-600 capitalize" x-text="user.role"></td>
+                      <td class="px-4 py-3"><span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium" :class="user.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'" x-text="user.status === 'active' ? 'Aktif' : 'Tidak Aktif'"></span></td>
+                      <td class="px-4 py-3 text-right">
+                        <div class="inline-flex flex-wrap justify-end gap-2">
+                          <button @click="editUser(user)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.5 2.5 0 013.536 3.536L7.5 19.92l-4 1 1-4 12.362-13.433z"/></svg>
+                            Edit
+                          </button>
+                          <button @click="deleteUser(user.id)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z"/></svg>
+                            Hapus
+                          </button>
+                        </div>
+                      </td>
+                    </tr></template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- User Form -->
+            <template x-if="(currentPage === '/users/new' || (currentPage.startsWith('/users/') && currentPage !== '/users' && !currentPage.includes('/new'))) && isAdmin">
+              <div class="max-w-2xl mx-auto" x-init="
+                if (currentPage === '/users/new') {
+                  isEditUser = false;
+                  userForm = {
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'user',
+                    status: 'active'
+                  };
+                  formError = '';
+                }
+              " x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+              <div class="mb-6">
+                <button @click="navigate('/users')" class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 mb-4">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                  Kembali ke Daftar User
+                </button>
+                <div>
+                  <h1 class="text-2xl font-bold text-slate-900" x-text="isEditUser ? 'Edit User' : 'User Baru'"></h1>
+                  <p class="text-slate-500 mt-1" x-text="isEditUser ? 'Perbarui informasi user' : 'Tambah user baru'"></p>
+                </div>
+              </div>
+              <form @submit.prevent="saveUser" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Informasi User</h3>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Nama <span class="text-red-500">*</span></label><input x-model="userForm.name" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" required></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Email <span class="text-red-500">*</span></label><input x-model="userForm.email" type="email" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" required></div>
+                    <div x-show="!isEditUser"><label class="block text-sm font-medium text-slate-700 mb-1">Password <span class="text-red-500">*</span></label><input x-model="userForm.password" type="password" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan password"></div>
+                    <div x-show="isEditUser" class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <p class="text-sm text-amber-800">Kosongkan password jika tidak ingin mengubah</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                        <select x-model="userForm.role" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                          <option value="admin">Admin</option>
+                          <option value="user">User</option>
+                        </select>
+                      </div>
+                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                        <select x-model="userForm.status" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                          <option value="active">Aktif</option>
+                          <option value="inactive">Tidak Aktif</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div x-show="formError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="formError"></p></div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                  <button type="button" @click="navigate('/users')" class="px-5 py-2.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors">Batal</button>
+                  <button type="submit" class="px-5 py-2.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium transition-colors flex items-center gap-2" :disabled="formLoading">
+                    <svg x-show="!formLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span x-text="isEditUser ? 'Simpan Perubahan' : 'Simpan User'"></span>
+                  </button>
+                </div>
+              </form>
+            </div>
+            </template>
+
+            <!-- Backup Page -->
+            <template x-if="currentPage === '/backup' && isAdmin">
+              <div class="space-y-6" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h2 class="text-xl font-semibold text-slate-900">Backup Database</h2>
+                    <p class="text-sm text-slate-500">Unduh data dalam format SQL untuk cadangan.</p>
+                  </div>
+                  <div class="p-6 space-y-3">
+                    <button type="button" @click="downloadBackupSql" :disabled="backupDownloadLoading" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium" :class="backupDownloadLoading ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
+                      <span x-show="!backupDownloadLoading">Download Backup SQL</span>
+                      <span x-show="backupDownloadLoading">Menyiapkan backup...</span>
+                    </button>
+                    <p class="text-xs text-slate-500">File berisi data lengkap seluruh tabel.</p>
+                  </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h2 class="text-xl font-semibold text-slate-900">Import Backup</h2>
+                    <p class="text-sm text-slate-500">Unggah file SQL untuk memulihkan data.</p>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <input type="file" accept=".sql" @change="handleBackupFileChange" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    <p x-show="backupImportFileName" class="text-sm text-slate-600">File terpilih: <span class="font-medium" x-text="backupImportFileName"></span></p>
+                    <button type="button" @click="importBackupSql" :disabled="backupImportLoading || !backupImportSql" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium" :class="backupImportLoading || !backupImportSql ? 'bg-amber-300 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700'">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8v-2a2 2 0 012-2h12a2 2 0 012 2v2M7 14l5-5m0 0l5 5m-5-5v12"/></svg>
+                      <span x-show="!backupImportLoading">Import Backup</span>
+                      <span x-show="backupImportLoading">Mengimpor...</span>
+                    </button>
+                    <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      Import akan mengganti data saat ini. Pastikan file backup sudah benar.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Feedback Page -->
+            <template x-if="currentPage === '/feedback'">
+              <div class="space-y-6" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                  <div class="mb-6">
+                    <h2 class="text-xl font-semibold text-slate-900">Kritik &amp; Saran</h2>
+                    <p class="text-sm text-slate-500">Bantu kami meningkatkan layanan dengan masukan Anda.</p>
+                  </div>
+                  <form @submit.prevent="saveFeedback" class="space-y-4">
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700 mb-1">Nama (Opsional)</label>
+                      <input x-model="feedbackForm.name" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Nama Anda">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700 mb-1">Kritik / Saran <span class="text-red-500">*</span></label>
+                      <textarea x-model="feedbackForm.message" rows="4" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Tulis kritik atau saran..."></textarea>
+                    </div>
+                    <div x-show="feedbackError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="feedbackError"></p></div>
+                    <div class="flex justify-end">
+                      <button type="submit" class="px-5 py-2.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium transition-colors">Simpan Kritik &amp; Saran</button>
+                    </div>
+                  </form>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                  <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Riwayat Masukan</h3>
+                  </div>
+                  <div class="p-6 space-y-4">
+                    <template x-if="feedbackLoading">
+                      <p class="text-sm text-slate-500">Memuat data...</p>
+                    </template>
+                    <template x-if="!feedbackLoading && feedbacks.length === 0">
+                      <p class="text-sm text-slate-500">Belum ada kritik atau saran.</p>
+                    </template>
+                    <template x-for="item in feedbacks" :key="item.id">
+                      <div class="border border-slate-200 rounded-lg p-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <p class="font-semibold text-slate-900" x-text="item.name || 'Anonim'"></p>
+                          <p class="text-xs text-slate-500" x-text="formatDateTime(item.created_at)"></p>
+                        </div>
+                        <p class="text-sm text-slate-700 whitespace-pre-line" x-text="item.message"></p>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Subkegiatan List -->
+            <template x-if="currentPage === '/subkegiatan'">
+              <div class="space-y-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+                <div class="flex flex-col sm:flex-row gap-4 justify-between">
+                  <div class="flex-1 max-w-md">
+                    <input x-model="subkegiatanSearch" type="text" placeholder="Cari subkegiatan..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" @input.debounce.300ms="loadSubkegiatans()">
+                  </div>
+                  <button @click="navigate('/subkegiatan/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700">Subkegiatan Baru</button>
+                </div>
+                  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="w-full">
+                      <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Subkegiatan</th>
+                          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">PPK</th>
+                          <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-200">
+                        <template x-if="subkegiatansLoading"><tr><td colspan="3" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
+                        <template x-if="!subkegiatansLoading && subkegiatans.length === 0"><tr><td colspan="3" class="px-4 py-8 text-center text-slate-500"><p>Belum ada subkegiatan</p><button @click="navigate('/subkegiatan/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Tambah Subkegiatan Pertama</button></td></tr></template>
+                        <template x-for="subkegiatan in subkegiatans" :key="subkegiatan.id"><tr class="hover:bg-slate-50">
+                          <td class="px-4 py-3 text-sm text-slate-900" x-text="subkegiatan.subkegiatan"></td>
+                          <td class="px-4 py-3 text-sm text-slate-600" x-text="subkegiatan.ppk || '-'"></td>
+                          <td class="px-4 py-3 text-right">
+                            <div class="inline-flex flex-wrap justify-end gap-2">
+                              <button @click="editSubkegiatan(subkegiatan)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.5 2.5 0 013.536 3.536L7.5 19.92l-4 1 1-4 12.362-13.433z"/></svg>
+                                Edit
+                              </button>
+                              <button @click="deleteSubkegiatan(subkegiatan.id)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z"/></svg>
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr></template>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+
+            <!-- Subkegiatan Create/Edit Form -->
+            <template x-if="currentPage === '/subkegiatan/new' || (currentPage.startsWith('/subkegiatan/') && currentPage !== '/subkegiatan' && !currentPage.includes('/new'))">
+              <div x-init="
+                if (currentPage === '/subkegiatan/new') {
+                  isEditSubkegiatan = false;
+                  subkegiatanForm = {
+                    subkegiatan: '',
+                    ppk: '',
+                    status: 'active'
+                  };
+                }
+              " x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+                <button @click="navigate('/subkegiatan')" class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 mb-4">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                  Kembali ke Daftar Subkegiatan
+                </button>
+                  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="mb-6">
+                      <h1 class="text-2xl font-bold text-slate-900" x-text="isEditSubkegiatan ? 'Edit Subkegiatan' : 'Subkegiatan Baru'"></h1>
+                      <p class="text-slate-500 mt-1" x-text="isEditSubkegiatan ? 'Perbarui informasi subkegiatan' : 'Tambah subkegiatan baru'"></p>
+                    </div>
+                    <form @submit.prevent="saveSubkegiatan" class="space-y-4">
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Subkegiatan <span class="text-red-500">*</span></label>
+                        <input x-model="subkegiatanForm.subkegiatan" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan nama subkegiatan..." required>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">PPK</label>
+                        <input x-model="subkegiatanForm.ppk" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan nama PPK...">
+                      </div>
+                      <div x-show="formError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="formError"></p></div>
+                      <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" @click="navigate('/subkegiatan')" class="px-5 py-2.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium transition-colors flex items-center gap-2">
+                          <svg x-show="!formLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                          <span x-text="isEditSubkegiatan ? 'Simpan Perubahan' : 'Simpan Subkegiatan'"></span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+              </template>
+          </main>
+        </div>
+      </div>
+    </template>
+
+    <!-- Toast -->
+    <div x-show="toast.show" x-transition class="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg" :class="toast.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'" style="display: none;">
+      <p class="font-medium" x-text="toast.title"></p>
+      <p x-show="toast.message" class="text-sm" x-text="toast.message"></p>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div x-show="showOrderModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" style="display: none;">
+      <div @click.outside="showOrderModal = false" class="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">Detail Order</h3>
+            <p class="text-sm text-slate-500" x-text="formatOrderNumber(selectedOrder?.order_number)" ></p>
+          </div>
+          <button @click="showOrderModal = false" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div class="space-y-1">
+            <p class="text-slate-500">Tanggal</p>
+            <p class="font-medium text-slate-900" x-text="formatDate(selectedOrder?.order_date)"></p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-slate-500">Status</p>
+            <p class="font-medium text-slate-900" x-text="selectedOrder?.status || '-'" ></p>
+          </div>
+          <div class="space-y-1 sm:col-span-2">
+            <p class="text-slate-500">Nama Belanja</p>
+            <p class="font-medium text-slate-900" x-text="selectedOrder?.shopping_name || '-'" ></p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-slate-500">Subkegiatan</p>
+            <p class="font-medium text-slate-900" x-text="selectedOrder?.subkegiatan_name || '-'" ></p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-slate-500">Vendor</p>
+            <p class="font-medium text-slate-900" x-text="selectedOrder?.vendor_name || '-'" ></p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-slate-500">Nilai Kontrak</p>
+            <p class="font-medium text-slate-900" x-text="formatCurrency(selectedOrder?.contract_value || 0)"></p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-slate-500">Diperbaharui</p>
+            <p class="font-medium text-slate-900" x-text="formatDateTime(selectedOrder?.updated_at)"></p>
+          </div>
+          <div class="space-y-1 sm:col-span-2">
+            <p class="text-slate-500">Catatan</p>
+            <p class="font-medium text-slate-900" x-text="selectedOrder?.notes || '-'" ></p>
+          </div>
+        </div>
+        <div class="mt-6 space-y-4">
+          <div class="flex flex-wrap gap-2">
+            <button type="button" @click="setOrderDetailTab('paket')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderDetailTab === 'paket' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">ID Paket</button>
+            <button type="button" @click="setOrderDetailTab('kontrak')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderDetailTab === 'kontrak' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">Kontrak</button>
+            <button type="button" @click="setOrderDetailTab('invoice')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderDetailTab === 'invoice' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">Invoice</button>
+            <button type="button" @click="setOrderDetailTab('drive')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderDetailTab === 'drive' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">Link Drive</button>
+            <button type="button" @click="setOrderDetailTab('ba')" class="px-3 py-1.5 rounded-lg text-sm font-medium" :class="orderDetailTab === 'ba' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">BA-STB/SPPB/BTPB</button>
+          </div>
+          <div x-show="orderDetailTab === 'paket'" class="space-y-3 text-sm">
+            <div>
+              <p class="text-slate-500">ID Paket/No Surat Pesanan</p>
+              <p class="font-medium text-slate-900" x-text="selectedOrder?.paket?.id_paket || selectedOrder?.paket?.no_surat_pesanan || '-'" ></p>
+            </div>
+          </div>
+          <div x-show="orderDetailTab === 'kontrak'" class="space-y-3">
+
+            <div class="overflow-x-auto">
+              <table class="w-full border border-slate-200 text-sm">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode Kontrak</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode Bidang</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Kwitansi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  <template x-for="(item, index) in (selectedOrder?.kontrak || [])" :key="index">
+                    <tr>
+                      <td class="px-3 py-2" x-text="item.no || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.kode_kontrak || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.kode_bidang || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.bulan || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.tahun || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.tgl || '-'" ></td>
+                      <td class="px-3 py-2" x-text="formatCurrency(item.nilai_kwitansi || 0)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div x-show="orderDetailTab === 'invoice'" class="space-y-3">
+            <div class="overflow-x-auto">
+              <table class="w-full border border-slate-200 text-sm">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Invoice</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  <template x-for="(item, index) in (selectedOrder?.invoice || [])" :key="index">
+                    <tr>
+                      <td class="px-3 py-2" x-text="item.no || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.tgl || '-'" ></td>
+                      <td class="px-3 py-2" x-text="formatCurrency(item.nilai_invoice || 0)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div x-show="orderDetailTab === 'drive'" class="space-y-2 text-sm">
+            <p class="text-slate-500">Link Google Drive</p>
+            <a x-show="selectedOrder?.drive_link" :href="selectedOrder?.drive_link" target="_blank" rel="noopener" class="text-sky-600 hover:underline break-all" x-text="selectedOrder?.drive_link"></a>
+            <p x-show="!selectedOrder?.drive_link" class="font-medium text-slate-900">-</p>
+          </div>
+          <div x-show="orderDetailTab === 'ba'" class="space-y-3">
+            <div class="overflow-x-auto">
+              <table class="w-full border border-slate-200 text-sm">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode BA</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Kode Bidang</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  <template x-for="(item, index) in (selectedOrder?.ba || [])" :key="index">
+                    <tr>
+                      <td class="px-3 py-2" x-text="item.no || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.kode_ba || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.kode_bidang || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.bulan || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.tahun || '-'" ></td>
+                      <td class="px-3 py-2" x-text="item.tgl || '-'" ></td>
+                      <td class="px-3 py-2" x-text="formatCurrency(item.nilai || 0)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-wrap justify-between gap-3 pt-6">
+          <div class="flex flex-wrap gap-2">
+            <button type="button" @click="downloadOrderExcel(selectedOrder)" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+              Download Excel
+            </button>
+            <button x-show="selectedOrder && canEditOrder(selectedOrder)" @click="editOrder(selectedOrder); showOrderModal = false" class="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.5 2.5 0 013.536 3.536L7.5 19.92l-4 1 1-4 12.362-13.433z"/></svg>
+              Ubah
+            </button>
+            <button x-show="selectedOrder && canDeleteOrder(selectedOrder)" @click="deleteOrder(selectedOrder.id); showOrderModal = false" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z"/></svg>
+              Hapus
+            </button>
+          </div>
+          <button @click="showOrderModal = false" class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download All Confirmation Modal -->
+    <div x-show="showDownloadAllModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" style="display: none;">
+      <div @click.outside="showDownloadAllModal = false" class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 transform transition-all">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">Download Semua Excel</h3>
+            <p class="text-sm text-slate-500">Proses download membutuhkan waktu, tergantung banyak data. Lanjutkan?</p>
+          </div>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <button @click="showDownloadAllModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors">Batal</button>
+          <button @click="confirmDownloadAll" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/>
+            </svg>
+            Lanjutkan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div x-show="showDeleteModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" style="display: none;">
+      <div @click.outside="showDeleteModal = false" class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 transform transition-all">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">Hapus Data?</h3>
+            <p class="text-sm text-slate-500" x-text="deleteModalMessage"></p>
+          </div>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <button @click="showDeleteModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors">Batal</button>
+          <button @click="confirmDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="w-full text-center text-xs text-slate-400 py-6">
+      SIMANDER - Sistem Manajemen Nomor Order
+    </footer>
+  </div>
+</body>
+</html>

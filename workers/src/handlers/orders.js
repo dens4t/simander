@@ -162,11 +162,13 @@ export async function handleOrders(request, env, ctx) {
   if (method === 'GET' && (path === '' || path === '/')) {
     const search = url.searchParams.get('search') || ''
     const status = url.searchParams.get('status') || ''
+    const createdBy = url.searchParams.get('created_by') || ''
     const sort = url.searchParams.get('sort') || 'created_at'
     const dir = url.searchParams.get('dir') || 'desc'
     const page = parseInt(url.searchParams.get('page')) || 1
     const limit = parseInt(url.searchParams.get('limit')) || 10
     const offset = (page - 1) * limit
+
 
     // Validate sort field to prevent SQL injection
     const allowedSortFields = ['created_at', 'updated_at', 'order_date', 'order_number', 'shopping_name', 'contract_value', 'status']
@@ -187,10 +189,23 @@ export async function handleOrders(request, env, ctx) {
         params.push(status)
       }
 
+      if (createdBy && auth.role === 'admin') {
+        const parsedCreatedBy = parseInt(createdBy, 10)
+        if (Number.isNaN(parsedCreatedBy)) {
+          return new Response(JSON.stringify({ message: 'created_by tidak valid' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          })
+        }
+        whereClause += ' AND o.created_by = ?'
+        params.push(parsedCreatedBy)
+      }
+
       if (auth.role !== 'admin') {
         whereClause += ' AND o.created_by = ?'
         params.push(auth.id)
       }
+
 
       const countQuery = await env.order_2025_db.prepare(
         `SELECT COUNT(*) as count FROM orders o LEFT JOIN vendors v ON o.vendor_id = v.id WHERE ${whereClause}`
@@ -243,8 +258,113 @@ export async function handleOrders(request, env, ctx) {
     }
   }
 
+  if (method === 'POST' && path === '/bulk') {
+    const data = await request.json()
+    const action = data?.action
+    const rawIds = Array.isArray(data?.order_ids) ? data.order_ids : []
+    const orderIds = Array.from(
+      new Set(
+        rawIds
+          .map((value) => parseInt(value, 10))
+          .filter((value) => Number.isFinite(value))
+      )
+    )
+
+    if (orderIds.length === 0) {
+      return new Response(JSON.stringify({ message: 'Order belum dipilih' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (action !== 'status' && action !== 'delete') {
+      return new Response(JSON.stringify({ message: 'Aksi bulk tidak valid' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (action === 'status') {
+      const allowedStatuses = ['draft', 'pending', 'approved', 'completed']
+      if (!allowedStatuses.includes(data?.status)) {
+        return new Response(JSON.stringify({ message: 'Status tidak valid' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    const placeholders = orderIds.map(() => '?').join(', ')
+
+    try {
+      const rows = await env.order_2025_db.prepare(
+        `SELECT id, order_number, created_by FROM orders WHERE id IN (${placeholders})`
+      ).bind(...orderIds).all()
+
+      const results = rows.results || []
+      if (results.length !== orderIds.length) {
+        return new Response(JSON.stringify({ message: 'Sebagian order tidak ditemukan' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+
+      if (auth.role !== 'admin') {
+        const unauthorized = results.filter((order) => order.created_by !== auth.id)
+        if (unauthorized.length > 0) {
+          return new Response(JSON.stringify({ message: 'Anda tidak memiliki akses untuk memperbarui order tertentu' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      if (action === 'status') {
+        await env.order_2025_db.prepare(
+          `UPDATE orders SET status = ?, updated_at = ?, updated_by = ? WHERE id IN (${placeholders})`
+        ).bind(data.status, new Date().toISOString(), auth.id, ...orderIds).run()
+
+        for (const order of results) {
+          await logAudit(env, 'order', order.id, 'update', auth.id, { status: data.status, bulk: true })
+        }
+
+        return new Response(JSON.stringify({
+          message: 'Status order berhasil diperbarui',
+          updated: results.length
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+
+      if (action === 'delete') {
+        await env.order_2025_db.prepare(
+          `DELETE FROM orders WHERE id IN (${placeholders})`
+        ).bind(...orderIds).run()
+
+        for (const order of results) {
+          await logAudit(env, 'order', order.id, 'delete', auth.id, { order_number: order.order_number, bulk: true })
+        }
+
+        return new Response(JSON.stringify({
+          message: 'Order berhasil dihapus',
+          deleted: results.length
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    } catch (error) {
+      return new Response(JSON.stringify({ message: error.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+  }
+
   if (method === 'POST' && (path === '' || path === '/')) {
     const data = await request.json()
+
 
     if (!data.shopping_name || !data.vendor_id) {
       return new Response(JSON.stringify({ message: 'Nama belanja dan vendor wajib diisi' }), {

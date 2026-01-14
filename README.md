@@ -133,10 +133,12 @@ order-2025-system/
 
 - `GET /api/v1/orders` - List orders (with query params: search, status, page, limit)
 - `POST /api/v1/orders` - Create order
+- `POST /api/v1/orders/bulk` - Bulk update status or delete
 - `GET /api/v1/orders/:id` - Get order detail
 - `PUT /api/v1/orders/:id` - Update order
 - `DELETE /api/v1/orders/:id` - Delete order
 - `GET /api/v1/orders/stats` - Dashboard statistics (no auth required)
+
 
 ### Vendors
 
@@ -147,7 +149,13 @@ order-2025-system/
 - `DELETE /api/v1/vendors/:id` - Delete vendor
 - `GET /api/v1/vendors/search` - Search vendors (with query param: q)
 
+### Feedback (Kritik & Saran)
+
+- `GET /api/v1/feedback` - List feedback (with query params: page, limit)
+- `POST /api/v1/feedback` - Submit feedback
+
 ## Frontend Deployment ke Cloudflare Pages
+
 
 1. Build (atau langsung upload folder):
 

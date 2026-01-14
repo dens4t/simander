@@ -56,28 +56,31 @@ function escapeValue(value) {
 }
 
 async function buildSqlDump(env) {
-  const tables = await env.order_2025_db
-    .prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-    .all()
+  const tableNames = [
+    'users',
+    'vendors',
+    'orders',
+    'subkegiatan',
+    'audit_logs',
+    'feedbacks'
+  ]
 
   const lines = [
     `-- Backup generated at ${new Date().toISOString()}`,
+    '-- Schema is assumed to exist; data only',
     'BEGIN TRANSACTION;'
   ]
 
-  for (const table of tables.results || []) {
-    if (!table.name || !table.sql) continue
-    const tableName = table.name
-    lines.push(`-- Table: ${tableName}`)
-    lines.push(`${table.sql.trim().replace(/;$/, '')};`)
-    lines.push(`DELETE FROM ${escapeIdentifier(tableName)};`)
-
+  for (const tableName of tableNames) {
     const tableInfo = await env.order_2025_db
       .prepare(`PRAGMA table_info(${escapeIdentifier(tableName)})`)
       .all()
 
     const columns = (tableInfo.results || []).map(column => column.name)
     if (columns.length === 0) continue
+
+    lines.push(`-- Table: ${tableName}`)
+    lines.push(`DELETE FROM ${escapeIdentifier(tableName)};`)
 
     const rows = await env.order_2025_db
       .prepare(`SELECT * FROM ${escapeIdentifier(tableName)}`)
@@ -95,6 +98,7 @@ async function buildSqlDump(env) {
   lines.push('COMMIT;')
   return lines.join('\n')
 }
+
 
 function splitSqlStatements(sql) {
   const statements = []
@@ -214,34 +218,8 @@ export async function handleBackup(request, env, ctx) {
     }
   }
 
-  if (method === 'POST') {
-    try {
-      const payload = await request.json()
-      if (!payload?.sql) {
-        return new Response(JSON.stringify({ message: 'SQL backup tidak ditemukan' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-
-      const result = await execSql(env, payload.sql)
-      return new Response(JSON.stringify({
-        message: 'Import backup berhasil',
-        statements: result.statements
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    } catch (error) {
-      console.error('Backup import error:', error)
-      return new Response(JSON.stringify({ message: error.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-  }
-
   return new Response(JSON.stringify({ message: 'Method not allowed' }), {
+
     status: 405,
     headers: { 'Content-Type': 'application/json' }
   })

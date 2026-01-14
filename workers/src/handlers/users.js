@@ -73,21 +73,25 @@ export async function handleUsers(request, env, ctx) {
       let params = []
 
       if (search) {
-        whereClause += ' AND (name LIKE ? OR email LIKE ?)'
+        whereClause += ' AND (u.name LIKE ? OR u.email LIKE ?)'
         params.push(`%${search}%`, `%${search}%`)
       }
 
       const countQuery = await env.order_2025_db.prepare(
-        `SELECT COUNT(*) as count FROM users WHERE ${whereClause}`
+        `SELECT COUNT(*) as count FROM users u WHERE ${whereClause}`
       ).bind(...params).first()
 
       const dataQuery = await env.order_2025_db.prepare(
-        `SELECT id, name, email, role, status, created_at, updated_at
-         FROM users
+        `SELECT u.id, u.name, u.email, u.role, u.status, u.created_at, u.updated_at,
+                COUNT(o.id) as order_count
+         FROM users u
+         LEFT JOIN orders o ON o.created_by = u.id
          WHERE ${whereClause}
-         ORDER BY created_at DESC
+         GROUP BY u.id
+         ORDER BY u.created_at DESC
          LIMIT ? OFFSET ?`
       ).bind(...params, limit, offset).all()
+
 
       return new Response(JSON.stringify({
         data: dataQuery.results,

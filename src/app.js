@@ -34,6 +34,10 @@ function app() {
     orderSortDir: "asc",
 
     orderPagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    selectedOrderIds: [],
+    bulkStatus: "",
+    bulkActionLoading: false,
+
 
     vendors: [],
     vendorsLoading: false,
@@ -77,12 +81,18 @@ function app() {
     feedbackError: "",
     feedbackForm: { name: "", message: "" },
 
+    backupDownloadLoading: false,
+
     toast: { show: false, title: "", message: "", type: "success" },
 
     showOrderModal: false,
     selectedOrder: null,
     orderDetailTab: "paket",
     orderTab: "paket",
+    showUserOrdersModal: false,
+    selectedUserOrders: null,
+    userOrders: [],
+    userOrdersLoading: false,
     showDownloadAllModal: false,
     downloadAllLoading: false,
     showDeleteModal: false,
@@ -98,6 +108,7 @@ function app() {
         "/users": "Users",
         "/subkegiatan": "Subkegiatan",
         "/feedback": "Kritik & Saran",
+        "/backup": "Backup",
 
       };
       if (this.currentPage === "/orders/new") return "Order Baru";
@@ -118,6 +129,7 @@ function app() {
         "/users": "Kelola data user",
         "/subkegiatan": "Kelola data subkegiatan dan PPK",
         "/feedback": "Masukan pengguna untuk perbaikan",
+        "/backup": "Unduh data backup",
 
         "/orders/new": "Buat order pengadaan baru",
       };
@@ -177,8 +189,9 @@ function app() {
       const hash = window.location.hash.slice(1) || "/";
       console.log("handleHashChange called, hash:", hash);
       this.currentPage = hash;
-      // Data loading is handled by $watch
+      this.loadPageData();
     },
+
 
     navigate(path) {
       console.log("navigate to:", path);
@@ -596,6 +609,8 @@ function app() {
           total: 0,
           totalPages: 0,
         };
+        this.selectedOrderIds = [];
+
       } catch (error) {
         this.orders = [];
         this.orderPagination = {
@@ -604,8 +619,10 @@ function app() {
           total: 0,
           totalPages: 0,
         };
+        this.selectedOrderIds = [];
       }
       this.ordersLoading = false;
+
     },
 
 
@@ -685,19 +702,88 @@ function app() {
       this.showDeleteModal = true;
     },
 
-    async confirmDelete() {
-      if (this.deleteModalType === 'order') {
-        await this.executeDeleteOrder(this.deleteModalId);
-      } else if (this.deleteModalType === 'vendor') {
-        await this.executeDeleteVendor(this.deleteModalId);
-      } else if (this.deleteModalType === 'user') {
-        await this.executeDeleteUser(this.deleteModalId);
-      }
-      this.showDeleteModal = false;
-      this.deleteModalType = "";
-      this.deleteModalId = null;
-      this.deleteModalMessage = "";
+    areAllOrdersSelected() {
+      return this.orders.length > 0 && this.selectedOrderIds.length === this.orders.length;
     },
+
+    toggleSelectAllOrders() {
+      if (this.areAllOrdersSelected()) {
+        this.selectedOrderIds = [];
+        return;
+      }
+
+      this.selectedOrderIds = this.orders.map((order) => order.id);
+    },
+
+    async bulkUpdateStatus() {
+      if (this.selectedOrderIds.length === 0) {
+        this.showToast("Error", "Belum ada order dipilih", "error");
+        return;
+      }
+
+      if (!this.bulkStatus) {
+        this.showToast("Error", "Pilih status baru terlebih dahulu", "error");
+        return;
+      }
+
+      this.bulkActionLoading = true;
+
+      try {
+        await this.apiRequest("/api/v1/orders/bulk", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "status",
+            status: this.bulkStatus,
+            order_ids: this.selectedOrderIds,
+          }),
+        });
+        this.showToast("Berhasil", "Status order diperbarui");
+        this.bulkStatus = "";
+        this.selectedOrderIds = [];
+        this.loadOrders();
+        this.loadDashboard();
+      } catch (error) {
+        this.showToast("Error", error.message || "Gagal memperbarui status", "error");
+      } finally {
+        this.bulkActionLoading = false;
+      }
+    },
+
+    confirmBulkDelete() {
+      if (this.selectedOrderIds.length === 0) {
+        this.showToast("Error", "Belum ada order dipilih", "error");
+        return;
+      }
+
+      this.deleteModalType = "bulk-orders";
+      this.deleteModalId = null;
+      this.deleteModalMessage = `Apakah Anda yakin ingin menghapus ${this.selectedOrderIds.length} order terpilih? Data yang dihapus tidak dapat dikembalikan.`;
+      this.showDeleteModal = true;
+    },
+
+    async executeBulkDeleteOrders() {
+      this.bulkActionLoading = true;
+
+      try {
+        await this.apiRequest("/api/v1/orders/bulk", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "delete",
+            order_ids: this.selectedOrderIds,
+          }),
+        });
+        this.showToast("Berhasil", "Order terpilih berhasil dihapus");
+        this.selectedOrderIds = [];
+        this.loadOrders();
+        this.loadDashboard();
+      } catch (error) {
+        this.showToast("Error", error.message || "Gagal menghapus order", "error");
+      } finally {
+        this.bulkActionLoading = false;
+      }
+    },
+
+
 
     async executeDeleteOrder(id) {
       try {
@@ -763,14 +849,20 @@ function app() {
           contract_value: 0,
           status: "draft",
           notes: "",
+          subkegiatan_id: null,
         };
         this.orderForm = newOrderForm;
         this.vendorSearchInput = "";
         this.selectedVendor = null;
         this.filteredVendors = [];
         this.showVendorDropdown = false;
+        this.subkegiatanSearchInput = "";
+        this.selectedSubkegiatan = null;
+        this.filteredSubkegiatans = [];
+        this.showSubkegiatanDropdown = false;
         this.formError = "";
         this.contractValueDisplay = "";
+
         
         // Force Alpine reactivity by explicitly setting each property
         this.orderForm.order_number = newOrderForm.order_number;
@@ -781,10 +873,12 @@ function app() {
         this.orderForm.contract_value = newOrderForm.contract_value;
         this.orderForm.status = newOrderForm.status;
         this.orderForm.notes = newOrderForm.notes;
+        this.orderForm.subkegiatan_id = newOrderForm.subkegiatan_id;
         
         console.log("NEW MODE: form reset to:", this.orderForm);
         return;
       }
+
       
       // Edit mode - populate with order data
       this.isEditOrder = true;
@@ -797,10 +891,21 @@ function app() {
       };
       this.filteredVendors = [];
       this.showVendorDropdown = false;
+      this.subkegiatanSearchInput = order.subkegiatan_name || "";
+      this.selectedSubkegiatan = order.subkegiatan_id
+        ? {
+            id: order.subkegiatan_id,
+            subkegiatan: order.subkegiatan_name || "",
+            ppk: order.subkegiatan_ppk || "",
+          }
+        : null;
+      this.filteredSubkegiatans = [];
+      this.showSubkegiatanDropdown = false;
       this.formError = "";
       this.contractValueDisplay = this.formatNumber(order.contract_value || 0);
       console.log("EDIT MODE: orderForm set to:", this.orderForm);
     },
+
 
     async searchVendors() {
       if (!this.isAuthenticated) return;
@@ -828,7 +933,38 @@ function app() {
       this.showVendorDropdown = false;
     },
 
+    async searchSubkegiatans() {
+      if (!this.isAuthenticated) return;
+
+      if (!this.subkegiatanSearchInput) {
+        this.filteredSubkegiatans = [];
+        this.showSubkegiatanDropdown = false;
+        this.selectedSubkegiatan = null;
+        this.orderForm.subkegiatan_id = null;
+        return;
+      }
+
+      try {
+        const data = await this.apiRequest(
+          `/api/v1/subkegiatan?search=${encodeURIComponent(this.subkegiatanSearchInput)}&limit=10`,
+        );
+        this.filteredSubkegiatans = data.data || [];
+        this.showSubkegiatanDropdown = this.filteredSubkegiatans.length > 0;
+      } catch (error) {
+        this.filteredSubkegiatans = [];
+        this.showSubkegiatanDropdown = false;
+      }
+    },
+
+    selectSubkegiatan(subkegiatan) {
+      this.selectedSubkegiatan = subkegiatan;
+      this.orderForm.subkegiatan_id = subkegiatan.id;
+      this.subkegiatanSearchInput = subkegiatan.subkegiatan;
+      this.showSubkegiatanDropdown = false;
+    },
+
     async saveOrder() {
+
       if (
         !this.orderForm.order_date ||
         !this.orderForm.shopping_name ||
@@ -1080,6 +1216,8 @@ function app() {
             "error",
           );
         }
+      } else if (this.deleteModalType === "bulk-orders") {
+        await this.executeBulkDeleteOrders();
       }
 
       this.showDeleteModal = false;
@@ -1129,6 +1267,44 @@ function app() {
       this.feedbackLoading = false;
     },
 
+    async downloadBackupSql() {
+      if (!this.isAuthenticated) return;
+      this.backupDownloadLoading = true;
+
+      try {
+        const response = await fetch(`${this.API_BASE_URL}/api/v1/backup`, {
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+          },
+        });
+
+        if (!response.ok) {
+          let errorMessage = "Gagal mengunduh backup";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData?.message || errorMessage;
+          } catch (error) {
+            console.warn("Failed to parse backup error", error);
+          }
+          throw new Error(errorMessage);
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "backup-order.sql";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        this.showToast("Error", error.message || "Gagal mengunduh backup", "error");
+      } finally {
+        this.backupDownloadLoading = false;
+      }
+    },
+
     // User CRUD Functions
 
     async loadUsers() {
@@ -1141,17 +1317,66 @@ function app() {
           url += `&search=${encodeURIComponent(this.userSearch)}`;
 
         const data = await this.apiRequest(url);
-        this.users = data.data || [];
+        this.users = (data.data || []).map((user) => ({
+          ...user,
+          order_count: user.order_count || 0,
+        }));
         this.userPagination = data.pagination || {
           page: 1,
           limit: 10,
           total: 0,
           totalPages: 0,
         };
+
       } catch (error) {
         console.error('Error loading users:', error);
       }
       this.usersLoading = false;
+    },
+
+    async fetchUserOrders(userId) {
+      if (!this.isAuthenticated) return [];
+
+      const collected = [];
+      let page = 1;
+      let totalPages = 1;
+      const limit = 50;
+
+      try {
+        do {
+          const url = `/api/v1/orders?page=${page}&limit=${limit}&sort=order_number&dir=asc&created_by=${encodeURIComponent(userId)}`;
+          const data = await this.apiRequest(url);
+          collected.push(...(data.data || []));
+          totalPages = data.pagination?.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+      } catch (error) {
+        this.showToast("Error", error.message || "Gagal memuat order user", "error");
+        return [];
+      }
+
+      return collected;
+    },
+
+    async openUserOrdersModal(user) {
+      if (!user) return;
+      this.selectedUserOrders = user;
+      this.userOrders = [];
+      this.showUserOrdersModal = true;
+      this.userOrdersLoading = true;
+
+      try {
+        this.userOrders = await this.fetchUserOrders(user.id);
+      } finally {
+        this.userOrdersLoading = false;
+      }
+    },
+
+    closeUserOrdersModal() {
+      this.showUserOrdersModal = false;
+      this.selectedUserOrders = null;
+      this.userOrders = [];
+      this.userOrdersLoading = false;
     },
 
     async deleteUser(id) {
@@ -1161,6 +1386,7 @@ function app() {
       this.deleteModalMessage = `Apakah Anda yakin ingin menghapus user "${user?.name || id}"?`;
       this.showDeleteModal = true;
     },
+
 
     editUser(user) {
       console.log("editUser called with:", user);
@@ -1237,7 +1463,20 @@ function app() {
 
     formatOrderNumber(value) {
       if (value === null || value === undefined || value === "") return "-";
-      return String(value);
+      if (typeof value === "number") {
+        return Number.isInteger(value) ? String(value) : String(parseInt(value, 10));
+      }
+
+      const stringValue = String(value);
+      if (stringValue.includes("ORD-")) {
+        return stringValue;
+      }
+
+      if (/^\d+(\.0+)?$/.test(stringValue)) {
+        return String(parseInt(stringValue, 10));
+      }
+
+      return stringValue;
     },
 
     viewOrder(order) {

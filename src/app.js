@@ -30,8 +30,9 @@ function app() {
     ordersLoading: false,
     orderSearch: "",
     orderStatusFilter: "",
-    orderSortBy: "created_at",
-    orderSortDir: "desc",
+    orderSortBy: "order_number",
+    orderSortDir: "asc",
+
     orderPagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
 
     vendors: [],
@@ -71,7 +72,13 @@ function app() {
     showSubkegiatanDropdown: false,
     filteredSubkegiatans: [],
 
+    feedbacks: [],
+    feedbackLoading: false,
+    feedbackError: "",
+    feedbackForm: { name: "", message: "" },
+
     toast: { show: false, title: "", message: "", type: "success" },
+
     showOrderModal: false,
     selectedOrder: null,
     orderDetailTab: "paket",
@@ -90,6 +97,8 @@ function app() {
         "/vendors": "Vendors",
         "/users": "Users",
         "/subkegiatan": "Subkegiatan",
+        "/feedback": "Kritik & Saran",
+
       };
       if (this.currentPage === "/orders/new") return "Order Baru";
       if (this.currentPage.startsWith("/orders/")) return "Edit Order";
@@ -108,6 +117,8 @@ function app() {
         "/vendors": "Kelola data vendor/penyedia",
         "/users": "Kelola data user",
         "/subkegiatan": "Kelola data subkegiatan dan PPK",
+        "/feedback": "Masukan pengguna untuk perbaikan",
+
         "/orders/new": "Buat order pengadaan baru",
       };
       return subtitles[this.currentPage] || "";
@@ -152,10 +163,15 @@ function app() {
 
     async init() {
       console.log('=== INIT CALLED ===');
+      this.restoreAuthSession();
       window.addEventListener("hashchange", () => this.handleHashChange());
       console.log("Hash change listener added");
       this.handleHashChange();
+      await this.verifyAuth();
+      this.loadInitialData();
+      this.loadPageData();
     },
+
 
     handleHashChange() {
       const hash = window.location.hash.slice(1) || "/";
@@ -218,6 +234,39 @@ function app() {
       }, 50);
     },
 
+    restoreAuthSession() {
+      const storedToken = sessionStorage.getItem("auth_token");
+      if (!storedToken) return;
+
+      this.token = storedToken;
+      this.isAuthenticated = true;
+
+      const storedUser = sessionStorage.getItem("auth_user");
+      if (storedUser) {
+        try {
+          this.user = JSON.parse(storedUser);
+        } catch (error) {
+          console.warn("Failed to parse stored user", error);
+          sessionStorage.removeItem("auth_user");
+        }
+      }
+    },
+
+    saveAuthSession() {
+      if (this.token) {
+        sessionStorage.setItem("auth_token", this.token);
+      }
+      if (this.user) {
+        sessionStorage.setItem("auth_user", JSON.stringify(this.user));
+      }
+    },
+
+    clearAuthSession() {
+      sessionStorage.removeItem("auth_token");
+      sessionStorage.removeItem("auth_user");
+    },
+
+
     async apiRequest(endpoint, options = {}) {
       const headers = {
         "Content-Type": "application/json",
@@ -261,17 +310,22 @@ function app() {
       // Skip verification for demo mode
       if (this.token === "demo-token") {
         console.log('Demo mode detected, skipping verification');
+        this.isAuthenticated = true;
         return;
       }
 
       if (!this.token) {
         console.log('No token available');
+        this.isAuthenticated = false;
         return;
       }
 
       try {
         const result = await this.apiRequest("/api/v1/auth/me");
         console.log('Auth verification successful:', result);
+        this.user = result;
+        this.isAuthenticated = true;
+        this.saveAuthSession();
       } catch (error) {
         console.log('Auth verification failed:', error.message);
         // If API not available (network error), stay logged in for demo
@@ -283,6 +337,7 @@ function app() {
         this.handleLogout();
       }
     },
+
 
     loadInitialData() {
       console.log('loadInitialData called, isAuthenticated:', this.isAuthenticated);
@@ -298,13 +353,121 @@ function app() {
 
     loadPageData() {
       if (!this.isAuthenticated) return;
-      if (this.isAuthenticated) {
+
+      if (this.currentPage === "/") {
         this.loadDashboard();
+        return;
+      }
+
+      if (this.currentPage === "/orders") {
         this.loadOrders();
+        return;
+      }
+
+      if (this.currentPage === "/orders/new") {
+        this.initOrderForm();
+        this.loadOrders();
+        return;
+      }
+
+      if (this.currentPage.startsWith("/orders/") && !this.currentPage.includes("/new")) {
+        const id = this.currentPage.split("/")[2];
+        this.loadOrders().then(() => {
+          const order = this.orders.find((o) => o.id == id || o.id === String(id));
+          if (order) {
+            this.initOrderForm(order);
+            return;
+          }
+          this.apiRequest("/api/v1/orders/" + id)
+            .then((orderData) => this.initOrderForm(orderData))
+            .catch(() => this.initOrderForm({ id }));
+        });
+        return;
+      }
+
+      if (this.currentPage === "/vendors") {
         this.loadVendors();
+        return;
+      }
+
+      if (this.currentPage === "/vendors/new") {
+        this.loadVendors();
+        this.initVendorForm();
+        return;
+      }
+
+      if (this.currentPage.startsWith("/vendors/") && !this.currentPage.includes("/new")) {
+        const id = this.currentPage.split("/")[2];
+        this.loadVendors().then(() => {
+          const vendor = this.vendors.find((v) => v.id == id || v.id === String(id));
+          if (vendor) {
+            this.initVendorForm(vendor);
+            return;
+          }
+          this.apiRequest("/api/v1/vendors/" + id)
+            .then((vendorData) => this.initVendorForm(vendorData))
+            .catch(() => this.initVendorForm({ id }));
+        });
+        return;
+      }
+
+      if (this.currentPage === "/users") {
         this.loadUsers();
+        return;
+      }
+
+      if (this.currentPage === "/users/new") {
+        this.loadUsers();
+        this.initUserForm();
+        return;
+      }
+
+      if (this.currentPage.startsWith("/users/") && !this.currentPage.includes("/new")) {
+        const id = this.currentPage.split("/")[2];
+        this.loadUsers().then(() => {
+          const user = this.users.find((u) => u.id == id || u.id === String(id));
+          if (user) {
+            this.initUserForm(user);
+            return;
+          }
+          this.apiRequest("/api/v1/users/" + id)
+            .then((userData) => this.initUserForm(userData))
+            .catch(() => this.initUserForm({ id }));
+        });
+        return;
+      }
+
+      if (this.currentPage === "/feedback") {
+        this.loadFeedbacks();
+        return;
+      }
+
+      if (this.currentPage === "/subkegiatan") {
+        this.loadSubkegiatans();
+        return;
+      }
+
+      if (this.currentPage === "/subkegiatan/new") {
+        this.loadSubkegiatans();
+        this.initSubkegiatanForm();
+        return;
+      }
+
+      if (this.currentPage.startsWith("/subkegiatan/") && !this.currentPage.includes("/new")) {
+        const id = this.currentPage.split("/")[2];
+        this.loadSubkegiatans().then(() => {
+          const subkegiatan = this.subkegiatans.find((s) => s.id == id || s.id === String(id));
+          if (subkegiatan) {
+            this.initSubkegiatanForm(subkegiatan);
+            return;
+          }
+          this.apiRequest("/api/v1/subkegiatan/" + id)
+            .then((subkegiatanData) => this.initSubkegiatanForm(subkegiatanData))
+            .catch(() => this.initSubkegiatanForm({ id }));
+        });
       }
     },
+
 
     async handleLogin() {
       this.authLoading = true;
@@ -321,10 +484,12 @@ function app() {
         this.token = String(data.token || '');
         this.user = data.user;
         this.isAuthenticated = true;
+        this.saveAuthSession();
         console.log('Token saved:', this.token.substring(0, 20) + '...');
         this.loadInitialData();
         this.showToast("Berhasil", "Selamat datang, " + this.user.name);
         this.navigate("/");
+
       } catch (error) {
         this.loginError = error.message || "Email atau password salah";
       }
@@ -343,8 +508,10 @@ function app() {
       this.user = null;
       this.token = null;
       this.isAuthenticated = false;
+      this.clearAuthSession();
       this.navigate("/login");
     },
+
 
     async loadDashboard() {
       if (!this.isAuthenticated) return;
@@ -879,47 +1046,91 @@ function app() {
         } else {
           await this.apiRequest("/api/v1/subkegiatan", {
             method: "POST",
-            body: JSON.stringify(this.subkegitanForm),
+            body: JSON.stringify(this.subkegiatanForm),
           });
           this.showToast("Berhasil", "Subk berhasil dibuat");
         }
         this.loadSubkegiatans();
-        this.navigate("/subkegitan");
+        this.navigate("/subkegiatan");
       } catch (error) {
-        this.formError = error.message || "Gagal menyimpan subkegitan";
+        this.formError = error.message || "Gagal menyimpan subkegiatan";
       }
 
       this.formLoading = false;
     },
 
     async confirmDelete() {
-      if (this.deleteModalType === 'subkegitan') {
+      if (this.deleteModalType === "order") {
+        await this.executeDeleteOrder(this.deleteModalId);
+      } else if (this.deleteModalType === "vendor") {
+        await this.executeDeleteVendor(this.deleteModalId);
+      } else if (this.deleteModalType === "user") {
+        await this.executeDeleteUser(this.deleteModalId);
+      } else if (this.deleteModalType === "subkegiatan") {
         try {
-          await this.apiRequest(`/api/v1/subkegitan/${this.deleteModalId}`, {
+          await this.apiRequest(`/api/v1/subkegiatan/${this.deleteModalId}`, {
             method: "DELETE",
           });
           this.showToast("Berhasil", "Subk berhasil dihapus");
           this.loadSubkegiatans();
         } catch (error) {
-          this.showToast("Error", error.message || "Gagal menghapus subkegitan", "error");
-        }
-      } else if (this.deleteModalType === 'subkegitan') {
-        try {
-          await this.apiRequest(`/api/v1/subkegitan/${this.deleteModalId}`, {
-            method: "DELETE",
-          });
-          this.showToast("Berhasil", "Subk berhasil dihapus");
-          this.loadSubkegiatans();
-        } catch (error) {
-          this.showToast("Error", error.message || "Gagal menghapus subkegitan", "error");
+          this.showToast(
+            "Error",
+            error.message || "Gagal menghapus subkegiatan",
+            "error",
+          );
         }
       }
+
       this.showDeleteModal = false;
       this.deleteModalType = "";
       this.deleteModalId = null;
+      this.deleteModalMessage = "";
+    },
+
+    // Feedback Functions
+    async loadFeedbacks() {
+      if (!this.isAuthenticated) return;
+      this.feedbackLoading = true;
+      this.feedbackError = "";
+
+      try {
+        const data = await this.apiRequest("/api/v1/feedback?limit=50");
+        this.feedbacks = data.data || [];
+      } catch (error) {
+        this.feedbacks = [];
+        this.feedbackError = error.message || "Gagal memuat kritik dan saran";
+      }
+
+      this.feedbackLoading = false;
+    },
+
+    async saveFeedback() {
+      if (!this.feedbackForm.message) {
+        this.feedbackError = "Kritik / saran wajib diisi";
+        return;
+      }
+
+      this.feedbackLoading = true;
+      this.feedbackError = "";
+
+      try {
+        await this.apiRequest("/api/v1/feedback", {
+          method: "POST",
+          body: JSON.stringify(this.feedbackForm),
+        });
+        this.showToast("Berhasil", "Kritik & saran berhasil disimpan");
+        this.feedbackForm = { name: "", message: "" };
+        this.loadFeedbacks();
+      } catch (error) {
+        this.feedbackError = error.message || "Gagal menyimpan kritik dan saran";
+      }
+
+      this.feedbackLoading = false;
     },
 
     // User CRUD Functions
+
     async loadUsers() {
       if (!this.isAuthenticated) return;
       this.usersLoading = true;
@@ -1059,17 +1270,226 @@ function app() {
       }
     },
 
+    getXlsx() {
+      if (typeof XLSX === "undefined") {
+        this.showToast("Error", "Library Excel belum tersedia", "error");
+        return null;
+      }
+      return XLSX;
+    },
+
+    parseJsonValue(value, fallback) {
+      if (value === null || value === undefined || value === "") return fallback;
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value);
+          return parsed ?? fallback;
+        } catch (error) {
+          return fallback;
+        }
+      }
+      return value;
+    },
+
+    normalizeOrderForExport(order) {
+      const paket = this.parseJsonValue(order?.paket, {
+        id_paket: "",
+        no_surat_pesanan: "",
+      });
+      const kontrak = this.parseJsonValue(order?.kontrak, []);
+      const invoice = this.parseJsonValue(order?.invoice, []);
+      const ba = this.parseJsonValue(order?.ba, []);
+
+      return {
+        ...order,
+        paket,
+        kontrak: Array.isArray(kontrak) ? kontrak : [],
+        invoice: Array.isArray(invoice) ? invoice : [],
+        ba: Array.isArray(ba) ? ba : [],
+      };
+    },
+
+    buildOrderWorkbook(orders) {
+      const xlsx = this.getXlsx();
+      if (!xlsx) return null;
+
+      const workbook = xlsx.utils.book_new();
+      const orderRows = orders.map((order) => ({
+        "No. Order": this.formatOrderNumber(order.order_number),
+        Tanggal: order.order_date || "",
+        "Nama Belanja": order.shopping_name || "",
+        Subkegiatan: order.subkegiatan_name || "",
+        PPK: order.subkegiatan_ppk || "",
+        Vendor: order.vendor_name || "",
+        "NPWP Vendor": order.vendor_npwp || "",
+        "ID Paket": order.paket?.id_paket || "",
+        "No Surat Pesanan": order.paket?.no_surat_pesanan || "",
+        "No Kontrak": order.contract_number || "",
+        "Nilai Kontrak": order.contract_value || 0,
+        Status: order.status || "",
+        Catatan: order.notes || "",
+        "Drive Link": order.drive_link || "",
+        Dibuat: order.created_at || "",
+        Diperbarui: order.updated_at || "",
+      }));
+
+      const orderSheet = xlsx.utils.json_to_sheet(orderRows);
+      xlsx.utils.book_append_sheet(workbook, orderSheet, "Orders");
+
+      const kontrakRows = [];
+      const invoiceRows = [];
+      const baRows = [];
+
+      orders.forEach((order) => {
+        const orderNumber = this.formatOrderNumber(order.order_number);
+        order.kontrak.forEach((item, index) => {
+          kontrakRows.push({
+            "No. Order": orderNumber,
+            "Nama Belanja": order.shopping_name || "",
+            No: item.no || index + 1,
+            "Kode Kontrak": item.kode_kontrak || "",
+            "Kode Bidang": item.kode_bidang || "",
+            Bulan: item.bulan || "",
+            Tahun: item.tahun || "",
+            Tanggal: item.tgl || "",
+            "Nilai Kwitansi": item.nilai_kwitansi || 0,
+          });
+        });
+
+        order.invoice.forEach((item, index) => {
+          invoiceRows.push({
+            "No. Order": orderNumber,
+            "Nama Belanja": order.shopping_name || "",
+            No: item.no || index + 1,
+            "Tanggal Invoice": item.tgl || "",
+            "Nilai Invoice": item.nilai_invoice || 0,
+          });
+        });
+
+        order.ba.forEach((item, index) => {
+          baRows.push({
+            "No. Order": orderNumber,
+            "Nama Belanja": order.shopping_name || "",
+            No: item.no || index + 1,
+            "Kode BA": item.kode_ba || "",
+            "Kode Bidang": item.kode_bidang || "",
+            Bulan: item.bulan || "",
+            Tahun: item.tahun || "",
+            Tanggal: item.tgl || "",
+            Nilai: item.nilai || 0,
+          });
+        });
+      });
+
+      if (kontrakRows.length > 0) {
+        const kontrakSheet = xlsx.utils.json_to_sheet(kontrakRows);
+        xlsx.utils.book_append_sheet(workbook, kontrakSheet, "Kontrak");
+      }
+
+      if (invoiceRows.length > 0) {
+        const invoiceSheet = xlsx.utils.json_to_sheet(invoiceRows);
+        xlsx.utils.book_append_sheet(workbook, invoiceSheet, "Invoice");
+      }
+
+      if (baRows.length > 0) {
+        const baSheet = xlsx.utils.json_to_sheet(baRows);
+        xlsx.utils.book_append_sheet(workbook, baSheet, "BA");
+      }
+
+      return workbook;
+    },
+
+    downloadWorkbook(workbook, filename) {
+      const xlsx = this.getXlsx();
+      if (!xlsx || !workbook) return;
+      xlsx.writeFile(workbook, filename, { compression: true });
+    },
+
+    async fetchAllOrdersForExport() {
+      if (!this.isAuthenticated) return [];
+
+      const collected = [];
+      let page = 1;
+      let totalPages = 1;
+      const limit = 100;
+
+      try {
+        do {
+          let url = `/api/v1/orders?page=${page}&limit=${limit}`;
+          if (this.orderSearch) {
+            url += `&search=${encodeURIComponent(this.orderSearch)}`;
+          }
+          if (this.orderStatusFilter) {
+            url += `&status=${encodeURIComponent(this.orderStatusFilter)}`;
+          }
+          if (this.orderSortBy) {
+            url += `&sort=${encodeURIComponent(this.orderSortBy)}&dir=${encodeURIComponent(this.orderSortDir)}`;
+          }
+
+          const data = await this.apiRequest(url);
+          collected.push(...(data.data || []));
+          totalPages = data.pagination?.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+      } catch (error) {
+        this.showToast("Error", error.message || "Gagal mengambil data order", "error");
+        return [];
+      }
+
+      return collected;
+    },
+
     async downloadOrderExcel(order) {
       if (!order) {
         this.showToast("Error", "Order tidak ditemukan", "error");
         return;
       }
-      this.showToast("Info", "Fitur download Excel belum tersedia", "error");
+
+      let orderData = order;
+      const needsDetail =
+        !order.paket ||
+        !order.kontrak ||
+        !order.invoice ||
+        !order.ba ||
+        typeof order.paket === "string" ||
+        typeof order.kontrak === "string" ||
+        typeof order.invoice === "string" ||
+        typeof order.ba === "string";
+
+      if (order.id && needsDetail) {
+        try {
+          orderData = await this.apiRequest(`/api/v1/orders/${order.id}`);
+        } catch (error) {
+          console.error("Gagal mengambil detail order:", error);
+        }
+      }
+
+      const normalized = this.normalizeOrderForExport(orderData);
+      const workbook = this.buildOrderWorkbook([normalized]);
+      if (!workbook) return;
+
+      const orderNumber = this.formatOrderNumber(normalized.order_number || normalized.id);
+      const filename = `order-${orderNumber || "detail"}.xlsx`;
+      this.downloadWorkbook(workbook, filename);
+      this.showToast("Berhasil", "Excel berhasil diunduh");
     },
 
     async downloadAllOrdersExcel() {
-      this.showToast("Info", "Fitur download Excel belum tersedia", "error");
+      const orders = await this.fetchAllOrdersForExport();
+      if (!orders.length) {
+        this.showToast("Info", "Tidak ada order untuk diunduh", "error");
+        return;
+      }
+
+      const normalizedOrders = orders.map((order) => this.normalizeOrderForExport(order));
+      const workbook = this.buildOrderWorkbook(normalizedOrders);
+      if (!workbook) return;
+
+      const dateStamp = new Date().toISOString().split("T")[0];
+      this.downloadWorkbook(workbook, `orders-${dateStamp}.xlsx`);
+      this.showToast("Berhasil", "Semua order berhasil diunduh");
     },
+
 
     formatCurrency(value) {
       if (!value) return "Rp 0";
@@ -1135,42 +1555,43 @@ function app() {
     },
 
     getNextOrderNumber() {
-      const year = new Date().getFullYear();
-      
-      // Jika tidak ada order, mulai dari 0001
       if (!this.orders || this.orders.length === 0) {
-        return `ORD-${year}-0001`;
+        return 1;
       }
-      
-      // Extract semua nomor urut dari order yang ada
+
       let maxNum = 0;
       let hasSequentialData = false;
-      
-      this.orders.forEach(order => {
-        if (order.order_number && order.order_number.includes('ORD-')) {
-          const parts = order.order_number.split('-');
-          if (parts.length >= 3) {
+
+      this.orders.forEach((order) => {
+        if (!order?.order_number) return;
+        let parsedNumber = null;
+
+        if (typeof order.order_number === "number") {
+          parsedNumber = order.order_number;
+        } else {
+          const value = String(order.order_number);
+          if (value.includes("ORD-")) {
+            const parts = value.split("-");
             const numPart = parts[parts.length - 1];
-            const num = parseInt(numPart, 10);
-            if (!isNaN(num) && num > 0) {
-              // Cek apakah ini data sequential (tidak random)
-              if (num <= 9999 && num >= 1) {
-                hasSequentialData = true;
-                if (num > maxNum) maxNum = num;
-              }
-            }
+            parsedNumber = parseInt(numPart, 10);
+          } else {
+            parsedNumber = parseInt(value, 10);
           }
         }
+
+        if (!Number.isNaN(parsedNumber) && parsedNumber > 0) {
+          hasSequentialData = true;
+          if (parsedNumber > maxNum) maxNum = parsedNumber;
+        }
       });
-      
-      // Jika tidak ada data sequential, mulai dari 0001
+
       if (!hasSequentialData) {
         maxNum = 0;
       }
-      
-      const nextNum = maxNum + 1;
-      return `ORD-${year}-${String(nextNum).padStart(4, '0')}`;
+
+      return maxNum + 1;
     },
+
 
     updateContractValue(value) {
       this.contractValueDisplay = this.formatNumber(value);
@@ -1232,7 +1653,10 @@ function app() {
           });
         } else if (value === "/users") {
           this.loadUsers();
+        } else if (value === "/feedback") {
+          this.loadFeedbacks();
         } else if (value === "/users/new") {
+
           this.loadUsers();
           this.initUserForm();
         } else if (value.startsWith("/users/") && !value.includes("/new")) {
@@ -1247,21 +1671,21 @@ function app() {
                 .catch(() => this.initUserForm({ id: id }));
             }
           });
-        } else if (value === "/subkegitan") {
+        } else if (value === "/subkegiatan") {
           this.loadSubkegiatans();
-        } else if (value === "/subkegitan/new") {
+        } else if (value === "/subkegiatan/new") {
           this.loadSubkegiatans();
-          this.initSubkegitanForm();
-        } else if (value.startsWith("/subkegitan/") && !value.includes("/new")) {
+          this.initSubkegiatanForm();
+        } else if (value.startsWith("/subkegiatan/") && !value.includes("/new")) {
           const id = value.split("/")[2];
           this.loadSubkegiatans().then(() => {
-            const subkegitan = this.subkegiatans.find((s) => s.id == id || s.id === String(id));
-            if (subkegitan) {
-              this.initSubkegitanForm(subkegitan);
+            const subkegiatan = this.subkegiatans.find((s) => s.id == id || s.id === String(id));
+            if (subkegiatan) {
+              this.initSubkegiatanForm(subkegiatan);
             } else {
-              this.apiRequest("/api/v1/subkegitan/" + id)
-                .then(subkegitanData => this.initSubkegitanForm(subkegitanData))
-                .catch(() => this.initSubkegitanForm({ id: id }));
+              this.apiRequest("/api/v1/subkegiatan/" + id)
+                .then(subkegiatanData => this.initSubkegiatanForm(subkegiatanData))
+                .catch(() => this.initSubkegiatanForm({ id: id }));
             }
           });
         }
@@ -1276,39 +1700,42 @@ function app() {
           const data = appElement._x_dataStack[0];
           
           // Create completely new orderForm object
-          const year = new Date().getFullYear();
-          
-          // Deteksi sequential vs random order numbers
           let maxNum = 0;
           let hasSequentialData = false;
-          
-          data.orders.forEach(o => {
-            if (o.order_number && o.order_number.includes('ORD-')) {
-              const parts = o.order_number.split('-');
-              if (parts.length >= 3) {
+
+          data.orders.forEach((order) => {
+            if (!order?.order_number) return;
+            let parsedNumber = null;
+
+            if (typeof order.order_number === "number") {
+              parsedNumber = order.order_number;
+            } else {
+              const value = String(order.order_number);
+              if (value.includes("ORD-")) {
+                const parts = value.split("-");
                 const numPart = parts[parts.length - 1];
-                const num = parseInt(numPart, 10);
-                if (!isNaN(num) && num > 0) {
-                  if (num <= 9999 && num >= 1) {
-                    hasSequentialData = true;
-                    if (num > maxNum) maxNum = num;
-                  }
-                }
+                parsedNumber = parseInt(numPart, 10);
+              } else {
+                parsedNumber = parseInt(value, 10);
               }
             }
+
+            if (!Number.isNaN(parsedNumber) && parsedNumber > 0) {
+              hasSequentialData = true;
+              if (parsedNumber > maxNum) maxNum = parsedNumber;
+            }
           });
-          
-          // Jika tidak ada data sequential, mulai dari 0001
+
           if (!hasSequentialData) {
             maxNum = 0;
           }
-          
-          const nextNum = maxNum + 1;
-          const nextOrderNumber = `ORD-${year}-${String(nextNum).padStart(4, '0')}`;
-          
+
+          const nextOrderNumber = maxNum + 1;
+
           // Replace the entire orderForm object
           data.orderForm = {
             order_number: nextOrderNumber,
+
             order_date: new Date().toISOString().split("T")[0],
             shopping_name: "",
             contract_number: "",

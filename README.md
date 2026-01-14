@@ -63,6 +63,17 @@ npx wrangler d1 create order-2025-db
 npx wrangler d1 execute order-2025-db --file=./database/schema.sql --remote
 ```
 
+### 2.a Cek Data Subkegiatan (Opsional)
+
+```bash
+# Cek isi tabel subkegiatan
+npx wrangler d1 execute order-2025-db --command "SELECT * FROM subkegiatan;" --remote
+
+# Cek jumlah data aktif (dipakai API)
+npx wrangler d1 execute order-2025-db --command "SELECT COUNT(*) AS total_active FROM subkegiatan WHERE status='active';" --remote
+```
+
+
 ### 3. Deploy Workers API
 
 ```bash
@@ -74,7 +85,22 @@ npx wrangler deploy
 
 Static files siap diupload ke Cloudflare Pages atau hosting apapun.
 
+## Catatan Testing
+
+Sebelum mematikan fitur, pastikan diuji dengan alur seperti ini:
+
+Penjelasan singkat: langkah ini membuat JWT sementara dari `JWT_SECRET` yang sama dengan Workers. Token ini hanya untuk verifikasi endpoint saat testing lokal/remote, bukan untuk produksi.
+
+```bash
+# Generate JWT kompatibel dengan Workers auth
+node -e "const crypto=require('crypto');const secret='your-jwt-secret-key-change-in-production';const header=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');const payload=Buffer.from(JSON.stringify({id:1,email:'test@example.com',role:'admin',iat:Date.now(),exp:Date.now()+86400000})).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');const message=header+'.'+payload;const signature=crypto.createHmac('sha256',secret).update(message).digest('hex');console.log(message+'.'+signature);"
+
+# Gunakan token untuk cek endpoint subkegiatan
+curl -s -H "Authorization: Bearer <TOKEN>" "https://order-2025-api.densat98.workers.dev/api/v1/subkegiatan?limit=1"
+```
+
 ## Project Structure
+
 
 ```
 order-2025-system/

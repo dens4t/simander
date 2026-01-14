@@ -60,7 +60,19 @@ CREATE TABLE IF NOT EXISTS subkegiatan (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Feedback table
+CREATE TABLE IF NOT EXISTS feedbacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    message TEXT NOT NULL,
+    user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 -- Add subkegiatan_id column to orders table
+
 ALTER TABLE orders ADD COLUMN subkegiatan_id INTEGER REFERENCES subkegiatan(id);
 
 -- Add extended order detail columns

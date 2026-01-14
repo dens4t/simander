@@ -4,6 +4,8 @@ import { handleVendors } from './handlers/vendors.js'
 import { handleUsers } from './handlers/users.js'
 import { handleSubkegiatan } from './handlers/subkegiatan.js'
 import { handleBackup } from './handlers/backup.js'
+import { handleFeedback } from './handlers/feedback.js'
+
 
 export default {
   async fetch(request, env, ctx) {
@@ -46,7 +48,11 @@ export default {
       else if (pathname === '/api/v1/backup' || pathname === '/api/v1/backup/') {
         response = await handleBackup(request, env, ctx)
       }
+      else if (pathname === '/api/v1/feedback' || pathname === '/api/v1/feedback/' || pathname.startsWith('/api/v1/feedback/')) {
+        response = await handleFeedback(request, env, ctx)
+      }
       else if (pathname === '/api/v1/health' || pathname === '/health') {
+
         response = new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         })

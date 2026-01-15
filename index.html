@@ -254,7 +254,8 @@
                       <button @click="navigate('/orders/new')" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 mt-3">Buat Order Pertama</button>
                     </div>
                     <div x-show="!loading && recentOrders.length > 0" class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                      <template x-for="order in recentOrders" :key="order.id"><div @click="navigate('/orders/'+order.id)" class="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
+                      <template x-for="order in recentOrders" :key="order.id"><div @click="canEditOrder(order) ? navigate('/orders/'+order.id) : viewOrder(order)" class="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
+
                         <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
                           <svg class="w-5 h-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/></svg>
                         </div>

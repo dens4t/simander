@@ -446,11 +446,25 @@ function app() {
         this.loadOrders().then(() => {
           const order = this.orders.find((o) => o.id == id || o.id === String(id));
           if (order) {
+            if (!this.canEditOrder(order)) {
+              this.showToast("Akses ditolak", "Anda tidak dapat mengubah order ini", "error");
+              this.viewOrder(order);
+              this.navigate("/orders");
+              return;
+            }
             this.initOrderForm(order);
             return;
           }
           this.apiRequest("/api/v1/orders/" + id)
-            .then((orderData) => this.initOrderForm(orderData))
+            .then((orderData) => {
+              if (!this.canEditOrder(orderData)) {
+                this.showToast("Akses ditolak", "Anda tidak dapat mengubah order ini", "error");
+                this.viewOrder(orderData);
+                this.navigate("/orders");
+                return;
+              }
+              this.initOrderForm(orderData);
+            })
             .catch(() => this.initOrderForm({ id }));
         });
         return;

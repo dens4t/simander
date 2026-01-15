@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Sistem Manajemen Order - SIMANDER">
   <title>SIMANDER - Sistem Manajemen Order</title>
+  <link rel="icon" href="https://www.pontianak.go.id/frontend_asset/image/logo/pemkot-pontianak.webp" type="image/webp">
   <script src="/src/tailwind.js"></script>
+
   <script>
     tailwind.config = {
       theme: {
@@ -97,14 +99,26 @@
               <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
               <span x-show="!sidebarCollapsed">Orders</span>
             </a>
-            <a href="#" @click.prevent="navigate('/vendors')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/vendors' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
-              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-              <span x-show="!sidebarCollapsed">Vendors</span>
-            </a>
-            <a href="#" @click.prevent="navigate('/subkegiatan')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/subkegiatan' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
-              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
-              <span x-show="!sidebarCollapsed">Subkegiatan</span>
-            </a>
+            <template x-if="isAdmin">
+              <a href="#" @click.prevent="navigate('/vendors')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/vendors' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                <span x-show="!sidebarCollapsed">Vendors</span>
+              </a>
+            </template>
+            <template x-if="isAdmin">
+              <a href="#" @click.prevent="navigate('/subkegiatan')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/subkegiatan' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
+                <span x-show="!sidebarCollapsed">Subkegiatan</span>
+              </a>
+            </template>
+            <template x-if="isAdmin">
+              <a href="#" @click.prevent="navigate('/bidang')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/bidang' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
+                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-2.414-2.414A2 2 0 0012.586 3H5zm7 0v3a1 1 0 001 1h3"/></svg>
+                <span x-show="!sidebarCollapsed">Bidang</span>
+              </a>
+            </template>
+
+
             <template x-if="isAdmin">
               <a href="#" @click.prevent="navigate('/users')" :class="['flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors', currentPage === '/users' ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-100']">
                 <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
@@ -147,17 +161,20 @@
               </div>
               <div class="flex items-center gap-4">
                 <div class="flex items-center gap-0 bg-white border border-slate-200 rounded-lg overflow-hidden">
-                  <button @click="navigate('/orders/new')" class="px-4 py-2 bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                    Order Baru
-                  </button>
+                <button @click="navigate('/orders/new')" class="px-4 py-2 bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                  + Order Baru
+                </button>
+                <template x-if="isAdmin">
                   <button @click="navigate('/vendors/new')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border-l border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                    Vendor Baru
+                    + Vendor Baru
                   </button>
-                  <template x-if="isAdmin">
-                    <button @click="navigate('/users/new')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border-l border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                      User Baru
-                    </button>
-                  </template>
+                </template>
+                <template x-if="isAdmin">
+                  <button @click="navigate('/users/new')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border-l border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    + User Baru
+                  </button>
+                </template>
+
                 </div>
                 <div class="relative" x-data="{ dropdownOpen: false }">
                   <button @click="dropdownOpen = !dropdownOpen" class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
@@ -247,13 +264,8 @@
                         </div>
                         <div class="flex-shrink-0 text-right">
                           <p class="font-medium text-slate-900 text-sm" x-text="formatCurrency(order.contract_value)"></p>
-                          <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="{
-                            'bg-slate-100 text-slate-700': order.status === 'draft',
-                            'bg-amber-100 text-amber-700': order.status === 'pending',
-                            'bg-emerald-100 text-emerald-700': order.status === 'approved',
-                            'bg-sky-100 text-sky-700': order.status === 'completed'
-                          }" x-text="order.status"></span>
                         </div>
+
                       </div></template>
                     </div>
                   </div>
@@ -264,7 +276,8 @@
                     <div class="p-4 space-y-3">
                       <button @click="navigate('/orders/new')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Order Baru</button>
                       <button @click="navigate('/orders')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Daftar Order</button>
-                      <button @click="navigate('/vendors')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Manage Vendor</button>
+                      <button x-show="isAdmin" @click="navigate('/vendors')" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 text-left">Manage Vendor</button>
+
                     </div>
                     <div class="p-4 pt-4 border-t border-slate-200">
                       <h4 class="text-sm font-medium text-slate-900 mb-3">Status Overview</h4>
@@ -358,15 +371,17 @@
                       <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Subkegiatan</th>
                       <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('vendor_name')">Vendor <span x-html="getSortIcon('vendor_name')"></span></th>
                       <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('contract_value')">Nilai <span x-html="getSortIcon('contract_value')"></span></th>
-                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('status')">Status <span x-html="getSortIcon('status')"></span></th>
                       <th class="px-4 py-3 text-left text-sm font-medium text-slate-600 cursor-pointer hover:text-sky-600" @click="sortBy('updated_at')">Diperbaharui <span x-html="getSortIcon('updated_at')"></span></th>
-                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Diedit oleh</th>
+
+                      <th class="px-4 py-3 text-left text-sm font-medium text-slate-600">Dibuat oleh</th>
+
                       <th class="px-4 py-3 text-right text-sm font-medium text-slate-600">Aksi</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100">
-                    <template x-if="ordersLoading"><tr><td colspan="11" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
-                    <template x-if="!ordersLoading && orders.length === 0"><tr><td colspan="11" class="px-4 py-8 text-center text-slate-500"><p>Belum ada order</p><button @click="navigate('/orders/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Buat Order Pertama</button></td></tr></template>
+                    <template x-if="ordersLoading"><tr><td colspan="10" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
+                    <template x-if="!ordersLoading && orders.length === 0"><tr><td colspan="10" class="px-4 py-8 text-center text-slate-500"><p>Belum ada order</p><button @click="navigate('/orders/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Buat Order Pertama</button></td></tr></template>
+
                       <template x-for="order in orders" :key="order.id"><tr class="hover:bg-slate-50 cursor-pointer" @click="viewOrder(order)">
                         <td class="px-4 py-3">
                           <input type="checkbox" :value="order.id" x-model="selectedOrderIds" @click.stop class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500">
@@ -378,14 +393,11 @@
                         <td class="px-4 py-3 text-sm text-slate-600" x-text="order.subkegiatan_name || '-'"></td>
                         <td class="px-4 py-3 text-sm text-slate-600" x-text="order.vendor_name"></td>
                        <td class="px-4 py-3 text-sm font-medium text-slate-900" x-text="formatCurrency(order.contract_value)"></td>
-                       <td class="px-4 py-3"><span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium" :class="{
-                         'bg-slate-100 text-slate-700': order.status === 'draft',
-                         'bg-amber-100 text-amber-700': order.status === 'pending',
-                         'bg-emerald-100 text-emerald-700': order.status === 'approved',
-                         'bg-sky-100 text-sky-700': order.status === 'completed'
-                       }" x-text="order.status"></span></td>
+
                        <td class="px-4 py-3 text-sm text-slate-600" x-text="formatDateTime(order.updated_at)"></td>
-                       <td class="px-4 py-3 text-sm text-slate-600" x-text="order.updated_by || '-'"></td>
+                                                <td class="px-4 py-3 text-sm text-slate-600" x-text="order.created_by_name || order.created_by || '-'">
+</td>
+
                         <td class="px-4 py-3 text-right">
                           <div class="inline-flex flex-wrap justify-end gap-2">
                             <button @click.stop="viewOrder(order)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50">
@@ -517,11 +529,11 @@
                     <h3 class="font-semibold text-slate-900">Informasi Order</h3>
                   </div>
                   <div class="p-6 space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div><label class="block text-sm font-medium text-slate-700 mb-1">No. Order</label><input :value="formatOrderNumber(orderForm.order_number)" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg bg-slate-50" disabled></div>
                       <div><label class="block text-sm font-medium text-slate-700 mb-1">Tanggal <span class="text-red-500">*</span></label><input x-model="orderForm.order_date" type="date" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" required></div>
-                      <div><label class="block text-sm font-medium text-slate-700 mb-1">No. Kontrak</label><input x-model="orderForm.contract_number" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"></div>
                     </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div><label class="block text-sm font-medium text-slate-700 mb-1">Nama Belanja <span class="text-red-500">*</span></label><input x-model="orderForm.shopping_name" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan nama belanja..." required></div>
                       <div>
@@ -537,8 +549,9 @@
                             </template>
                           </div>
                         </div>
-                        <p class="mt-2 text-xs text-slate-500">Ketikkan lalu pilih vendor/kegiatan</p>
+                        <p class="mt-2 text-xs text-slate-500">Ketikkan lalu pilih subkegiatan</p>
                         <div x-show="orderForm.subkegiatan_id" class="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+
                           <p class="font-medium text-emerald-800 flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <span x-text="selectedSubkegiatan?.subkegiatan || subkegiatanSearchInput"></span>
@@ -563,8 +576,9 @@
                             <template x-for="vendor in filteredVendors" :key="vendor.id"><button type="button" class="w-full px-4 py-2 text-left hover:bg-slate-50" @click="selectVendor(vendor)"><p class="font-medium text-slate-900" x-text="vendor.name"></p></button></template>
                           </div>
                         </div>
-                        <p class="mt-2 text-xs text-slate-500">Ketikkan lalu pilih vendor/kegiatan</p>
+                        <p class="mt-2 text-xs text-slate-500">Ketikkan nama vendor (boleh tanpa memilih)</p>
                         <div x-show="orderForm.vendor_id" class="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+
                           <p class="font-medium text-emerald-800 flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <span x-text="selectedVendor?.name"></span>
@@ -585,7 +599,8 @@
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200">
                   <div class="px-6 py-4 border-b border-slate-200">
-                    <h3 class="font-semibold text-slate-900">Detail Dokumen</h3>
+                    <h3 class="font-semibold text-slate-900">Detail Dokumen - No. Order <span x-text="formatOrderNumber(orderForm.order_number)"></span></h3>
+
                   </div>
                   <div class="p-6 space-y-4">
                     <div class="flex flex-wrap gap-2">
@@ -615,7 +630,8 @@
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
-                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Kwitansi</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Kwitansi (Rp)</th>
+
                               <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Aksi</th>
                             </tr>
                           </thead>
@@ -628,7 +644,8 @@
                                 <td class="p-2"><input x-model="item.bulan" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
                                 <td class="p-2"><input x-model="item.tahun" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
                                 <td class="p-2"><input x-model="item.tgl" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
-                                <td class="p-2"><input x-model.number="item.nilai_kwitansi" type="number" min="0" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input :value="formatNumber(item.nilai_kwitansi)" @input="item.nilai_kwitansi = parseNumber($event.target.value)" type="text" inputmode="numeric" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm" placeholder="0"></td>
+
                                 <td class="p-2 text-right"><button type="button" @click="removeKontrakRow(index)" class="text-xs font-medium text-red-600 hover:text-red-700">Hapus</button></td>
                               </tr>
                             </template>
@@ -646,7 +663,8 @@
                             <tr>
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
-                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Invoice</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Invoice (Rp)</th>
+
                               <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Aksi</th>
                             </tr>
                           </thead>
@@ -655,7 +673,8 @@
                               <tr>
                                 <td class="p-2"><input x-model="item.no" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
                                 <td class="p-2"><input x-model="item.tgl" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
-                                <td class="p-2"><input x-model.number="item.nilai_invoice" type="number" min="0" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input :value="formatNumber(item.nilai_invoice)" @input="item.nilai_invoice = parseNumber($event.target.value)" type="text" inputmode="numeric" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm" placeholder="0"></td>
+
                                 <td class="p-2 text-right"><button type="button" @click="removeInvoiceRow(index)" class="text-xs font-medium text-red-600 hover:text-red-700">Hapus</button></td>
                               </tr>
                             </template>
@@ -680,7 +699,8 @@
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
                               <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
-                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai</th>
+                              <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai (Rp)</th>
+
                               <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Aksi</th>
                             </tr>
                           </thead>
@@ -689,11 +709,20 @@
                               <tr>
                                 <td class="p-2"><input x-model="item.no" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
                                 <td class="p-2"><input x-model="item.kode_ba" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
-                                <td class="p-2"><input x-model="item.kode_bidang" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2">
+                                  <select x-model="item.kode_bidang" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm">
+                                    <option value="">Pilih kode bidang</option>
+                                    <template x-for="bidang in bidangs" :key="bidang.id">
+                                      <option :value="bidang.kode_bidang" x-text="`${bidang.kode_bidang} - ${bidang.nama_bidang}`"></option>
+                                    </template>
+                                  </select>
+                                </td>
                                 <td class="p-2"><input x-model="item.bulan" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+
                                 <td class="p-2"><input x-model="item.tahun" type="text" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
                                 <td class="p-2"><input x-model="item.tgl" type="date" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
-                                <td class="p-2"><input x-model.number="item.nilai" type="number" min="0" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"></td>
+                                <td class="p-2"><input :value="formatNumber(item.nilai)" @input="item.nilai = parseNumber($event.target.value)" type="text" inputmode="numeric" class="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm" placeholder="0"></td>
+
                                 <td class="p-2 text-right"><button type="button" @click="removeBaRow(index)" class="text-xs font-medium text-red-600 hover:text-red-700">Hapus</button></td>
                               </tr>
                             </template>
@@ -703,23 +732,18 @@
                     </div>
                   </div>
                 </div>
+
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200">
                   <div class="px-6 py-4 border-b border-slate-200">
-                    <h3 class="font-semibold text-slate-900">Status & Catatan</h3>
+                    <h3 class="font-semibold text-slate-900">Catatan</h3>
                   </div>
                   <div class="p-6 space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                        <select x-model="orderForm.status" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
-                          <option value="draft">Draft</option>
-                          <option value="pending">Pending</option>
-                          <option value="approved">Approved</option>
-                          <option value="completed">Completed</option>
-                        </select>
-                      </div>
-                      <div><label class="block text-sm font-medium text-slate-700 mb-1">Catatan</label><textarea x-model="orderForm.notes" rows="3" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Tambahkan catatan..."></textarea></div>
+                    <div>
+                      <label class="block text-sm font-medium text-slate-700 mb-1">Catatan</label>
+                      <textarea x-model="orderForm.notes" rows="3" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Tambahkan catatan..."></textarea>
                     </div>
                   </div>
+
                 </div>
                 <div x-show="formError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="formError"></p></div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
@@ -1044,10 +1068,97 @@
                     </form>
                   </div>
               </template>
+
+              <!-- Bidang List -->
+              <template x-if="currentPage === '/bidang'">
+                <div class="space-y-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+                  <div class="flex flex-col sm:flex-row gap-4 justify-between">
+                    <div class="flex-1 max-w-md">
+                      <input x-model="bidangSearch" type="text" placeholder="Cari bidang..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" @input.debounce.300ms="loadBidangs()">
+                    </div>
+                    <button @click="navigate('/bidang/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700">Bidang Baru</button>
+                  </div>
+                  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="w-full">
+                      <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Nama Bidang</th>
+                          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Kode Bidang</th>
+                          <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-200">
+                        <template x-if="bidangsLoading"><tr><td colspan="3" class="px-4 py-8 text-center text-slate-500">Memuat data...</td></tr></template>
+                        <template x-if="!bidangsLoading && bidangs.length === 0"><tr><td colspan="3" class="px-4 py-8 text-center text-slate-500"><p>Belum ada bidang</p><button @click="navigate('/bidang/new')" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 mt-3">Tambah Bidang Pertama</button></td></tr></template>
+                        <template x-for="bidang in bidangs" :key="bidang.id"><tr class="hover:bg-slate-50">
+                          <td class="px-4 py-3 text-sm text-slate-900" x-text="bidang.nama_bidang"></td>
+                          <td class="px-4 py-3 text-sm text-slate-600" x-text="bidang.kode_bidang"></td>
+                          <td class="px-4 py-3 text-right">
+                            <div class="inline-flex flex-wrap justify-end gap-2">
+                              <button @click="editBidang(bidang)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.5 2.5 0 013.536 3.536L7.5 19.92l-4 1 1-4 12.362-13.433z"/></svg>
+                                Edit
+                              </button>
+                              <button @click="deleteBidang(bidang.id)" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z"/></svg>
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr></template>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Bidang Create/Edit Form -->
+              <template x-if="currentPage === '/bidang/new' || (currentPage.startsWith('/bidang/') && currentPage !== '/bidang' && !currentPage.includes('/new'))">
+                <div x-init="
+                  if (currentPage === '/bidang/new') {
+                    isEditBidang = false;
+                    bidangForm = {
+                      nama_bidang: '',
+                      kode_bidang: '',
+                      status: 'active'
+                    };
+                  }
+                " x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-4">
+                  <button @click="navigate('/bidang')" class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 mb-4">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    Kembali ke Daftar Bidang
+                  </button>
+                  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="mb-6">
+                      <h1 class="text-2xl font-bold text-slate-900" x-text="isEditBidang ? 'Edit Bidang' : 'Bidang Baru'"></h1>
+                      <p class="text-slate-500 mt-1" x-text="isEditBidang ? 'Perbarui informasi bidang' : 'Tambah bidang baru'"></p>
+                    </div>
+                    <form @submit.prevent="saveBidang" class="space-y-4">
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Nama Bidang <span class="text-red-500">*</span></label>
+                        <input x-model="bidangForm.nama_bidang" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan nama bidang..." required>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Kode Bidang <span class="text-red-500">*</span></label>
+                        <input x-model="bidangForm.kode_bidang" type="text" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Masukkan kode bidang..." required>
+                      </div>
+                      <div x-show="formError" class="p-4 bg-red-50 border border-red-200 rounded-lg"><p class="text-sm text-red-600" x-text="formError"></p></div>
+                      <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" @click="navigate('/bidang')" class="px-5 py-2.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium transition-colors">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 font-medium transition-colors flex items-center gap-2">
+                          <svg x-show="!formLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                          <span x-text="isEditBidang ? 'Simpan Perubahan' : 'Simpan Bidang'"></span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </template>
           </main>
         </div>
       </div>
     </template>
+
 
     <!-- Toast -->
     <div x-show="toast.show" x-transition class="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg" :class="toast.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'" style="display: none;">
@@ -1072,10 +1183,7 @@
             <p class="text-slate-500">Tanggal</p>
             <p class="font-medium text-slate-900" x-text="formatDate(selectedOrder?.order_date)"></p>
           </div>
-          <div class="space-y-1">
-            <p class="text-slate-500">Status</p>
-            <p class="font-medium text-slate-900" x-text="selectedOrder?.status || '-'" ></p>
-          </div>
+
           <div class="space-y-1 sm:col-span-2">
             <p class="text-slate-500">Nama Belanja</p>
             <p class="font-medium text-slate-900" x-text="selectedOrder?.shopping_name || '-'" ></p>
@@ -1127,7 +1235,8 @@
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Kwitansi</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Kwitansi (Rp)</th>
+
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -1153,7 +1262,8 @@
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No</th>
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Invoice</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai Invoice (Rp)</th>
+
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -1184,7 +1294,8 @@
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Bulan</th>
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tahun</th>
                     <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tgl</th>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nilai (Rp)</th>
+
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -1249,26 +1360,26 @@
                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">No. Order</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Tanggal</th>
                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Nama Belanja</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
                 <th class="px-3 py-2 text-right text-xs font-semibold text-slate-600 uppercase">Nilai</th>
+
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
               <template x-if="userOrdersLoading">
-                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Memuat data...</td></tr>
+                <tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">Memuat data...</td></tr>
+
               </template>
               <template x-if="!userOrdersLoading && userOrders.length === 0">
-                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Belum ada order untuk user ini</td></tr>
+                <tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">Belum ada order untuk user ini</td></tr>
+
               </template>
               <template x-for="order in userOrders" :key="order.id">
                 <tr class="hover:bg-slate-50">
                   <td class="px-3 py-2 font-medium text-slate-900" x-text="formatOrderNumber(order.order_number)"></td>
                   <td class="px-3 py-2 text-slate-600" x-text="formatDate(order.order_date)"></td>
                   <td class="px-3 py-2 text-slate-700" x-text="order.shopping_name || '-'" ></td>
-                  <td class="px-3 py-2">
-                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="order.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : order.status === 'pending' ? 'bg-amber-100 text-amber-700' : order.status === 'completed' ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-600'" x-text="order.status"></span>
-                  </td>
                   <td class="px-3 py-2 text-right text-slate-700" x-text="formatCurrency(order.contract_value || 0)"></td>
+
                 </tr>
               </template>
             </tbody>

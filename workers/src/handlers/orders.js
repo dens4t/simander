@@ -201,11 +201,6 @@ export async function handleOrders(request, env, ctx) {
         params.push(parsedCreatedBy)
       }
 
-      if (auth.role !== 'admin') {
-        whereClause += ' AND o.created_by = ?'
-        params.push(auth.id)
-      }
-
 
       const countQuery = await env.order_2025_db.prepare(
         `SELECT COUNT(*) as count FROM orders o LEFT JOIN vendors v ON o.vendor_id = v.id WHERE ${whereClause}`
@@ -227,15 +222,17 @@ export async function handleOrders(request, env, ctx) {
         : ''
 
       const dataQuery = await env.order_2025_db.prepare(
-        `SELECT o.*, v.name as vendor_name, v.npwp as vendor_npwp, u.name as updated_by${subkegiatanSelect}
+        `SELECT o.*, v.name as vendor_name, v.npwp as vendor_npwp, u.name as updated_by_name, uc.name as created_by_name${subkegiatanSelect}
          FROM orders o 
          LEFT JOIN vendors v ON o.vendor_id = v.id 
          LEFT JOIN users u ON o.updated_by = u.id
+         LEFT JOIN users uc ON o.created_by = uc.id
          ${subkegiatanJoin}
          WHERE ${whereClause} 
          ORDER BY ${orderClause} 
          LIMIT ? OFFSET ?`
       ).bind(...params, limit, offset).all()
+
 
 
       return new Response(JSON.stringify({
@@ -505,12 +502,15 @@ export async function handleOrders(request, env, ctx) {
         : ''
 
       const result = await env.order_2025_db.prepare(
-        `SELECT o.*, v.name as vendor_name, v.email as vendor_email, v.phone as vendor_phone${subkegiatanSelect}
+        `SELECT o.*, v.name as vendor_name, v.email as vendor_email, v.phone as vendor_phone, u.name as updated_by_name, uc.name as created_by_name${subkegiatanSelect}
          FROM orders o 
          LEFT JOIN vendors v ON o.vendor_id = v.id 
+         LEFT JOIN users u ON o.updated_by = u.id
+         LEFT JOIN users uc ON o.created_by = uc.id
          ${subkegiatanJoin}
          WHERE o.id = ?`
       ).bind(orderId).first()
+
 
       if (!result) {
         return new Response(JSON.stringify({ message: 'Order tidak ditemukan' }), {
@@ -519,12 +519,6 @@ export async function handleOrders(request, env, ctx) {
         })
       }
 
-      if (result.created_by !== auth.id && auth.role !== 'admin') {
-        return new Response(JSON.stringify({ message: 'Anda tidak memiliki akses untuk melihat order ini' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
 
       return new Response(JSON.stringify(result), {
         status: 200,

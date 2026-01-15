@@ -85,6 +85,16 @@ npx wrangler deploy
 
 Static files siap diupload ke Cloudflare Pages atau hosting apapun.
 
+### 5. Deploy Ulang Setiap Perubahan (Wrangler)
+
+Setiap ada perubahan frontend, jalankan perintah berikut dari root project:
+
+```bash
+npx wrangler pages deploy . --project-name=order-2025
+```
+
+Jika ada perubahan API URL, pastikan update `src/app.js` lalu deploy ulang.
+
 ## Catatan Testing
 
 Sebelum mematikan fitur, pastikan diuji dengan alur seperti ini:

@@ -3,8 +3,10 @@ import { handleOrders } from './handlers/orders.js'
 import { handleVendors } from './handlers/vendors.js'
 import { handleUsers } from './handlers/users.js'
 import { handleSubkegiatan } from './handlers/subkegiatan.js'
+import { handleBidang } from './handlers/bidang.js'
 import { handleBackup } from './handlers/backup.js'
 import { handleFeedback } from './handlers/feedback.js'
+
 
 
 export default {
@@ -45,7 +47,11 @@ export default {
       else if (pathname === '/api/v1/subkegiatan' || pathname === '/api/v1/subkegiatan/' || pathname.startsWith('/api/v1/subkegiatan/')) {
         response = await handleSubkegiatan(request, env, ctx)
       }
+      else if (pathname === '/api/v1/bidang' || pathname === '/api/v1/bidang/' || pathname.startsWith('/api/v1/bidang/')) {
+        response = await handleBidang(request, env, ctx)
+      }
       else if (pathname === '/api/v1/backup' || pathname === '/api/v1/backup/') {
+
         response = await handleBackup(request, env, ctx)
       }
       else if (pathname === '/api/v1/feedback' || pathname === '/api/v1/feedback/' || pathname.startsWith('/api/v1/feedback/')) {

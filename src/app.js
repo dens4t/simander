@@ -76,7 +76,15 @@ function app() {
     showSubkegiatanDropdown: false,
     filteredSubkegiatans: [],
 
+    isEditBidang: false,
+    bidangForm: {},
+    bidangs: [],
+    bidangsLoading: false,
+    bidangSearch: "",
+    bidangPagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
+
     feedbacks: [],
+
     feedbackLoading: false,
     feedbackError: "",
     feedbackForm: { name: "", message: "" },
@@ -107,6 +115,7 @@ function app() {
         "/vendors": "Vendors",
         "/users": "Users",
         "/subkegiatan": "Subkegiatan",
+        "/bidang": "Bidang",
         "/feedback": "Kritik & Saran",
         "/backup": "Backup",
 
@@ -119,6 +128,8 @@ function app() {
       if (this.currentPage.startsWith("/users/")) return "Edit User";
       if (this.currentPage === "/subkegiatan/new") return "Subkegiatan Baru";
       if (this.currentPage.startsWith("/subkegiatan/")) return "Edit Subkegiatan";
+      if (this.currentPage === "/bidang/new") return "Bidang Baru";
+      if (this.currentPage.startsWith("/bidang/")) return "Edit Bidang";
       return titles[this.currentPage] || "Dashboard";
     },
 
@@ -128,6 +139,7 @@ function app() {
         "/vendors": "Kelola data vendor/penyedia",
         "/users": "Kelola data user",
         "/subkegiatan": "Kelola data subkegiatan dan PPK",
+        "/bidang": "Kelola data bidang",
         "/feedback": "Masukan pengguna untuk perbaikan",
         "/backup": "Unduh data backup",
 
@@ -188,6 +200,19 @@ function app() {
     handleHashChange() {
       const hash = window.location.hash.slice(1) || "/";
       console.log("handleHashChange called, hash:", hash);
+
+      const blockedRoutes = ["/vendors", "/users", "/subkegiatan", "/bidang", "/backup"];
+      const isBlocked = blockedRoutes.some(
+        (route) => hash === route || hash.startsWith(`${route}/`),
+      );
+
+      if (!this.isAdmin && isBlocked) {
+        this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+        this.currentPage = "/orders";
+        window.location.hash = "#/orders";
+        return;
+      }
+
       this.currentPage = hash;
       this.loadPageData();
     },
@@ -195,6 +220,10 @@ function app() {
 
     navigate(path) {
       console.log("navigate to:", path);
+
+      if (window.innerWidth < 1024) {
+        this.sidebarOpen = false;
+      }
       
       // Reset form states when navigating to new pages
       if (path === '/orders/new') {
@@ -388,6 +417,7 @@ function app() {
       this.loadOrders();
       this.loadVendors();
       this.loadUsers();
+      this.loadBidangs();
     },
 
     loadPageData() {
@@ -406,11 +436,13 @@ function app() {
       if (this.currentPage === "/orders/new") {
         this.initOrderForm();
         this.loadOrders();
+        this.loadBidangs();
         return;
       }
 
       if (this.currentPage.startsWith("/orders/") && !this.currentPage.includes("/new")) {
         const id = this.currentPage.split("/")[2];
+        this.loadBidangs();
         this.loadOrders().then(() => {
           const order = this.orders.find((o) => o.id == id || o.id === String(id));
           if (order) {
@@ -503,6 +535,32 @@ function app() {
           this.apiRequest("/api/v1/subkegiatan/" + id)
             .then((subkegiatanData) => this.initSubkegiatanForm(subkegiatanData))
             .catch(() => this.initSubkegiatanForm({ id }));
+        });
+        return;
+      }
+
+      if (this.currentPage === "/bidang") {
+        this.loadBidangs();
+        return;
+      }
+
+      if (this.currentPage === "/bidang/new") {
+        this.loadBidangs();
+        this.initBidangForm();
+        return;
+      }
+
+      if (this.currentPage.startsWith("/bidang/") && !this.currentPage.includes("/new")) {
+        const id = this.currentPage.split("/")[2];
+        this.loadBidangs().then(() => {
+          const bidang = this.bidangs.find((item) => item.id == id || item.id === String(id));
+          if (bidang) {
+            this.initBidangForm(bidang);
+            return;
+          }
+          this.apiRequest("/api/v1/bidang/" + id)
+            .then((bidangData) => this.initBidangForm(bidangData))
+            .catch(() => this.initBidangForm({ id }));
         });
       }
     },
@@ -992,6 +1050,37 @@ function app() {
       this.showVendorDropdown = false;
     },
 
+    async resolveVendorInput() {
+      if (this.orderForm.vendor_id) return;
+      const vendorName = (this.vendorSearchInput || "").trim();
+      if (!vendorName) return;
+
+      try {
+        const results = await this.apiRequest(
+          `/api/v1/vendors/search?q=${encodeURIComponent(vendorName)}`,
+        );
+        const exactMatch = (results || []).find((vendor) =>
+          (vendor.name || "").toLowerCase() === vendorName.toLowerCase(),
+        );
+        if (exactMatch) {
+          this.selectedVendor = exactMatch;
+          this.orderForm.vendor_id = exactMatch.id;
+          this.vendorSearchInput = exactMatch.name;
+          return;
+        }
+      } catch (error) {
+        // ignore search errors and attempt to create
+      }
+
+      const createdVendor = await this.apiRequest("/api/v1/vendors", {
+        method: "POST",
+        body: JSON.stringify({ name: vendorName, status: "active" }),
+      });
+      this.selectedVendor = { id: createdVendor.id, name: createdVendor.name || vendorName };
+      this.orderForm.vendor_id = createdVendor.id;
+      this.vendorSearchInput = createdVendor.name || vendorName;
+    },
+
     async searchSubkegiatans() {
       if (!this.isAuthenticated) return;
 
@@ -1075,6 +1164,12 @@ function app() {
     },
 
     async saveOrder() {
+      try {
+        await this.resolveVendorInput();
+      } catch (error) {
+        this.formError = error.message || "Gagal menyimpan vendor";
+        return;
+      }
 
       if (
         !this.orderForm.order_date ||
@@ -1084,6 +1179,7 @@ function app() {
         this.formError = "Tanggal, nama belanja, dan vendor wajib diisi";
         return;
       }
+
 
       this.formLoading = true;
       this.formError = "";
@@ -1308,7 +1404,94 @@ function app() {
       this.formLoading = false;
     },
 
+    // Bidang CRUD Functions
+    async loadBidangs() {
+      if (!this.isAuthenticated) return;
+      this.bidangsLoading = true;
+
+      try {
+        let url = `/api/v1/bidang?page=${this.bidangPagination.page}&limit=${this.bidangPagination.limit}`;
+        if (this.bidangSearch) {
+          url += `&search=${encodeURIComponent(this.bidangSearch)}`;
+        }
+
+        const data = await this.apiRequest(url);
+        this.bidangs = data.data || [];
+        this.bidangPagination = data.pagination || this.bidangPagination;
+        this.bidangsLoading = false;
+      } catch (error) {
+        console.error("Error loading bidangs:", error);
+        this.bidangsLoading = false;
+      }
+    },
+
+    async deleteBidang(id) {
+      const bidang = this.bidangs.find(item => item.id == id || item.id === String(id));
+      this.deleteModalType = "bidang";
+      this.deleteModalId = id;
+      this.deleteModalMessage = `Apakah Anda yakin ingin menghapus bidang "${bidang?.nama_bidang || id}"?`;
+      this.showDeleteModal = true;
+    },
+
+    editBidang(bidang) {
+      this.initBidangForm(bidang);
+      this.navigate("/bidang/" + bidang.id);
+      window.scrollTo(0, 0);
+    },
+
+    initBidangForm(bidang = null) {
+      if (bidang) {
+        this.isEditBidang = true;
+        this.bidangForm = {
+          id: bidang.id,
+          nama_bidang: bidang.nama_bidang,
+          kode_bidang: bidang.kode_bidang,
+          status: bidang.status || "active",
+        };
+      } else {
+        this.isEditBidang = false;
+        this.bidangForm = {
+          nama_bidang: "",
+          kode_bidang: "",
+          status: "active",
+        };
+      }
+    },
+
+    async saveBidang() {
+      if (!this.bidangForm.nama_bidang || !this.bidangForm.kode_bidang) {
+        this.formError = "Nama bidang dan kode bidang wajib diisi";
+        return;
+      }
+
+      this.formLoading = true;
+      this.formError = "";
+
+      try {
+        if (this.isEditBidang) {
+          await this.apiRequest(`/api/v1/bidang/${this.bidangForm.id}`, {
+            method: "PUT",
+            body: JSON.stringify(this.bidangForm),
+          });
+          this.showToast("Berhasil", "Bidang berhasil diupdate");
+        } else {
+          await this.apiRequest("/api/v1/bidang", {
+            method: "POST",
+            body: JSON.stringify(this.bidangForm),
+          });
+          this.showToast("Berhasil", "Bidang berhasil dibuat");
+        }
+        this.loadBidangs();
+        this.navigate("/bidang");
+      } catch (error) {
+        this.formError = error.message || "Gagal menyimpan bidang";
+      }
+
+      this.formLoading = false;
+    },
+
     async confirmDelete() {
+
       if (this.deleteModalType === "order") {
         await this.executeDeleteOrder(this.deleteModalId);
       } else if (this.deleteModalType === "vendor") {
@@ -1326,6 +1509,20 @@ function app() {
           this.showToast(
             "Error",
             error.message || "Gagal menghapus subkegiatan",
+            "error",
+          );
+        }
+      } else if (this.deleteModalType === "bidang") {
+        try {
+          await this.apiRequest(`/api/v1/bidang/${this.deleteModalId}`, {
+            method: "DELETE",
+          });
+          this.showToast("Berhasil", "Bidang berhasil dihapus");
+          this.loadBidangs();
+        } catch (error) {
+          this.showToast(
+            "Error",
+            error.message || "Gagal menghapus bidang",
             "error",
           );
         }
@@ -2034,9 +2231,11 @@ function app() {
           // Force DOM update by clearing form fields directly
           this.forceFormReset();
           this.loadOrders();
+          this.loadBidangs();
         } else if (value.startsWith("/orders/") && !value.includes("/new")) {
           // Edit order page - fetch order directly
           const id = value.split("/")[2];
+          this.loadBidangs();
           this.loadOrders().then(() => {
             const order = this.orders.find((o) => o.id == id || o.id === String(id));
             if (order) {
@@ -2049,60 +2248,137 @@ function app() {
             }
           });
         } else if (value === "/vendors") {
-          this.loadVendors();
+          if (this.isAdmin) {
+            this.loadVendors();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         } else if (value === "/vendors/new") {
-          this.loadVendors();
-          this.initVendorForm();
+          if (this.isAdmin) {
+            this.loadVendors();
+            this.initVendorForm();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         } else if (value.startsWith("/vendors/") && !value.includes("/new")) {
-          const id = value.split("/")[2];
-          this.loadVendors().then(() => {
-            const vendor = this.vendors.find((v) => v.id == id || v.id === String(id));
-            if (vendor) {
-              this.initVendorForm(vendor);
-            } else {
-              this.apiRequest("/api/v1/vendors/" + id)
-                .then(vendorData => this.initVendorForm(vendorData))
-                .catch(() => this.initVendorForm({ id: id }));
-            }
-          });
+          if (this.isAdmin) {
+            const id = value.split("/")[2];
+            this.loadVendors().then(() => {
+              const vendor = this.vendors.find((v) => v.id == id || v.id === String(id));
+              if (vendor) {
+                this.initVendorForm(vendor);
+              } else {
+                this.apiRequest("/api/v1/vendors/" + id)
+                  .then(vendorData => this.initVendorForm(vendorData))
+                  .catch(() => this.initVendorForm({ id: id }));
+              }
+            });
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         } else if (value === "/users") {
-          this.loadUsers();
+          if (this.isAdmin) {
+            this.loadUsers();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
+        } else if (value === "/users/new") {
+          if (this.isAdmin) {
+            this.loadUsers();
+            this.initUserForm();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
+        } else if (value.startsWith("/users/") && !value.includes("/new")) {
+          if (this.isAdmin) {
+            const id = value.split("/")[2];
+            this.loadUsers().then(() => {
+              const user = this.users.find((u) => u.id == id || u.id === String(id));
+              if (user) {
+                this.initUserForm(user);
+              } else {
+                this.apiRequest("/api/v1/users/" + id)
+                  .then(userData => this.initUserForm(userData))
+                  .catch(() => this.initUserForm({ id: id }));
+              }
+            });
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         } else if (value === "/feedback") {
           this.loadFeedbacks();
-        } else if (value === "/users/new") {
-
-          this.loadUsers();
-          this.initUserForm();
-        } else if (value.startsWith("/users/") && !value.includes("/new")) {
-          const id = value.split("/")[2];
-          this.loadUsers().then(() => {
-            const user = this.users.find((u) => u.id == id || u.id === String(id));
-            if (user) {
-              this.initUserForm(user);
-            } else {
-              this.apiRequest("/api/v1/users/" + id)
-                .then(userData => this.initUserForm(userData))
-                .catch(() => this.initUserForm({ id: id }));
-            }
-          });
         } else if (value === "/subkegiatan") {
-          this.loadSubkegiatans();
+          if (this.isAdmin) {
+            this.loadSubkegiatans();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         } else if (value === "/subkegiatan/new") {
-          this.loadSubkegiatans();
-          this.initSubkegiatanForm();
+          if (this.isAdmin) {
+            this.loadSubkegiatans();
+            this.initSubkegiatanForm();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         } else if (value.startsWith("/subkegiatan/") && !value.includes("/new")) {
-          const id = value.split("/")[2];
-          this.loadSubkegiatans().then(() => {
-            const subkegiatan = this.subkegiatans.find((s) => s.id == id || s.id === String(id));
-            if (subkegiatan) {
-              this.initSubkegiatanForm(subkegiatan);
-            } else {
-              this.apiRequest("/api/v1/subkegiatan/" + id)
-                .then(subkegiatanData => this.initSubkegiatanForm(subkegiatanData))
-                .catch(() => this.initSubkegiatanForm({ id: id }));
-            }
-          });
+          if (this.isAdmin) {
+            const id = value.split("/")[2];
+            this.loadSubkegiatans().then(() => {
+              const subkegiatan = this.subkegiatans.find((s) => s.id == id || s.id === String(id));
+              if (subkegiatan) {
+                this.initSubkegiatanForm(subkegiatan);
+              } else {
+                this.apiRequest("/api/v1/subkegiatan/" + id)
+                  .then(subkegiatanData => this.initSubkegiatanForm(subkegiatanData))
+                  .catch(() => this.initSubkegiatanForm({ id: id }));
+              }
+            });
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
+        } else if (value === "/bidang") {
+          if (this.isAdmin) {
+            this.loadBidangs();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
+        } else if (value === "/bidang/new") {
+          if (this.isAdmin) {
+            this.loadBidangs();
+            this.initBidangForm();
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
+        } else if (value.startsWith("/bidang/") && !value.includes("/new")) {
+          if (this.isAdmin) {
+            const id = value.split("/")[2];
+            this.loadBidangs().then(() => {
+              const bidang = this.bidangs.find((item) => item.id == id || item.id === String(id));
+              if (bidang) {
+                this.initBidangForm(bidang);
+              } else {
+                this.apiRequest("/api/v1/bidang/" + id)
+                  .then(bidangData => this.initBidangForm(bidangData))
+                  .catch(() => this.initBidangForm({ id: id }));
+              }
+            });
+          } else {
+            this.showToast("Akses ditolak", "Halaman ini hanya untuk admin", "error");
+            this.navigate("/orders");
+          }
         }
+
       },
     },
 

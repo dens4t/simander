@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS subkegiatan (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Bidang table
+CREATE TABLE IF NOT EXISTS bidang (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nama_bidang TEXT NOT NULL,
+    kode_bidang TEXT NOT NULL,
+    status TEXT DEFAULT 'active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Feedback table
 CREATE TABLE IF NOT EXISTS feedbacks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,6 +119,9 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(order_date);
 CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_bidang_nama ON bidang(nama_bidang);
+CREATE INDEX IF NOT EXISTS idx_bidang_kode ON bidang(kode_bidang);
+
 
 -- Insert default admin user (password: admin - will be hashed)
 -- NOTE: Hash the password 'admin' with SHA-256 in production

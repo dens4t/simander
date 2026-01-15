@@ -209,6 +209,32 @@ function app() {
           contract_value: 0,
           status: "draft",
           notes: "",
+          paket: { id_paket: "", no_surat_pesanan: "" },
+          kontrak: [
+            {
+              no: "",
+              kode_kontrak: "",
+              kode_bidang: "",
+              bulan: "",
+              tahun: "",
+              tgl: "",
+              nilai_kwitansi: 0,
+            },
+          ],
+          invoice: [{ no: "", tgl: "", nilai_invoice: 0 }],
+          drive_link: "",
+          ba: [
+            {
+              no: "",
+              kode_ba: "",
+              kode_bidang: "",
+              bulan: "",
+              tahun: "",
+              tgl: "",
+              nilai: 0,
+            },
+          ],
+          subkegiatan_id: null,
         };
         this.vendorSearchInput = "";
         this.selectedVendor = null;
@@ -849,6 +875,31 @@ function app() {
           contract_value: 0,
           status: "draft",
           notes: "",
+          paket: { id_paket: "", no_surat_pesanan: "" },
+          kontrak: [
+            {
+              no: "",
+              kode_kontrak: "",
+              kode_bidang: "",
+              bulan: "",
+              tahun: "",
+              tgl: "",
+              nilai_kwitansi: 0,
+            },
+          ],
+          invoice: [{ no: "", tgl: "", nilai_invoice: 0 }],
+          drive_link: "",
+          ba: [
+            {
+              no: "",
+              kode_ba: "",
+              kode_bidang: "",
+              bulan: "",
+              tahun: "",
+              tgl: "",
+              nilai: 0,
+            },
+          ],
           subkegiatan_id: null,
         };
         this.orderForm = newOrderForm;
@@ -873,6 +924,11 @@ function app() {
         this.orderForm.contract_value = newOrderForm.contract_value;
         this.orderForm.status = newOrderForm.status;
         this.orderForm.notes = newOrderForm.notes;
+        this.orderForm.paket = newOrderForm.paket;
+        this.orderForm.kontrak = newOrderForm.kontrak;
+        this.orderForm.invoice = newOrderForm.invoice;
+        this.orderForm.drive_link = newOrderForm.drive_link;
+        this.orderForm.ba = newOrderForm.ba;
         this.orderForm.subkegiatan_id = newOrderForm.subkegiatan_id;
         
         console.log("NEW MODE: form reset to:", this.orderForm);
@@ -882,27 +938,30 @@ function app() {
       
       // Edit mode - populate with order data
       this.isEditOrder = true;
-      this.orderForm = { ...order };
-      this.vendorSearchInput = order.vendor_name || "";
-      this.selectedVendor = {
-        id: order.vendor_id,
-        name: order.vendor_name,
-        npwp: order.vendor_npwp,
-      };
+      const normalizedOrder = this.ensureOrderExtras(order || {});
+      this.orderForm = { ...normalizedOrder };
+      this.vendorSearchInput = normalizedOrder.vendor_name || "";
+      this.selectedVendor = normalizedOrder.vendor_id
+        ? {
+            id: normalizedOrder.vendor_id,
+            name: normalizedOrder.vendor_name,
+            npwp: normalizedOrder.vendor_npwp,
+          }
+        : null;
       this.filteredVendors = [];
       this.showVendorDropdown = false;
-      this.subkegiatanSearchInput = order.subkegiatan_name || "";
-      this.selectedSubkegiatan = order.subkegiatan_id
+      this.subkegiatanSearchInput = normalizedOrder.subkegiatan_name || "";
+      this.selectedSubkegiatan = normalizedOrder.subkegiatan_id
         ? {
-            id: order.subkegiatan_id,
-            subkegiatan: order.subkegiatan_name || "",
-            ppk: order.subkegiatan_ppk || "",
+            id: normalizedOrder.subkegiatan_id,
+            subkegiatan: normalizedOrder.subkegiatan_name || "",
+            ppk: normalizedOrder.subkegiatan_ppk || "",
           }
         : null;
       this.filteredSubkegiatans = [];
       this.showSubkegiatanDropdown = false;
       this.formError = "";
-      this.contractValueDisplay = this.formatNumber(order.contract_value || 0);
+      this.contractValueDisplay = this.formatNumber(normalizedOrder.contract_value || 0);
       console.log("EDIT MODE: orderForm set to:", this.orderForm);
     },
 
@@ -963,6 +1022,58 @@ function app() {
       this.showSubkegiatanDropdown = false;
     },
 
+    addKontrakRow() {
+      if (!Array.isArray(this.orderForm.kontrak)) {
+        this.orderForm.kontrak = [];
+      }
+      this.orderForm.kontrak.push({
+        no: "",
+        kode_kontrak: "",
+        kode_bidang: "",
+        bulan: "",
+        tahun: "",
+        tgl: "",
+        nilai_kwitansi: 0,
+      });
+    },
+
+    removeKontrakRow(index) {
+      if (!Array.isArray(this.orderForm.kontrak)) return;
+      this.orderForm.kontrak.splice(index, 1);
+    },
+
+    addInvoiceRow() {
+      if (!Array.isArray(this.orderForm.invoice)) {
+        this.orderForm.invoice = [];
+      }
+      this.orderForm.invoice.push({ no: "", tgl: "", nilai_invoice: 0 });
+    },
+
+    removeInvoiceRow(index) {
+      if (!Array.isArray(this.orderForm.invoice)) return;
+      this.orderForm.invoice.splice(index, 1);
+    },
+
+    addBaRow() {
+      if (!Array.isArray(this.orderForm.ba)) {
+        this.orderForm.ba = [];
+      }
+      this.orderForm.ba.push({
+        no: "",
+        kode_ba: "",
+        kode_bidang: "",
+        bulan: "",
+        tahun: "",
+        tgl: "",
+        nilai: 0,
+      });
+    },
+
+    removeBaRow(index) {
+      if (!Array.isArray(this.orderForm.ba)) return;
+      this.orderForm.ba.splice(index, 1);
+    },
+
     async saveOrder() {
 
       if (
@@ -977,17 +1088,19 @@ function app() {
       this.formLoading = true;
       this.formError = "";
 
+      const payload = this.ensureOrderExtras(this.orderForm);
+
       try {
         if (this.isEditOrder) {
           await this.apiRequest(`/api/v1/orders/${this.orderForm.id}`, {
             method: "PUT",
-            body: JSON.stringify(this.orderForm),
+            body: JSON.stringify(payload),
           });
           this.showToast("Berhasil", "Order berhasil diupdate");
         } else {
           await this.apiRequest("/api/v1/orders", {
             method: "POST",
-            body: JSON.stringify(this.orderForm),
+            body: JSON.stringify(payload),
           });
           this.showToast("Berhasil", "Order berhasil dibuat");
         }
@@ -1479,8 +1592,32 @@ function app() {
       return stringValue;
     },
 
-    viewOrder(order) {
-      this.selectedOrder = order || null;
+    async viewOrder(order) {
+      if (!order) {
+        this.selectedOrder = null;
+        return;
+      }
+
+      let orderData = order;
+      const needsDetail =
+        !order.paket ||
+        !order.kontrak ||
+        !order.invoice ||
+        !order.ba ||
+        typeof order.paket === "string" ||
+        typeof order.kontrak === "string" ||
+        typeof order.invoice === "string" ||
+        typeof order.ba === "string";
+
+      if (order.id && needsDetail) {
+        try {
+          orderData = await this.apiRequest(`/api/v1/orders/${order.id}`);
+        } catch (error) {
+          this.showToast("Error", error.message || "Gagal memuat detail order", "error");
+        }
+      }
+
+      this.selectedOrder = this.ensureOrderExtras(orderData || {});
       this.orderDetailTab = "paket";
       this.showOrderModal = true;
     },
@@ -1515,6 +1652,44 @@ function app() {
         return null;
       }
       return XLSX;
+    },
+
+    normalizePaket(paket) {
+      if (typeof paket === "string") {
+        try {
+          paket = JSON.parse(paket);
+        } catch (error) {
+          const trimmedValue = paket.trim();
+          return {
+            id_paket: trimmedValue,
+            no_surat_pesanan: trimmedValue,
+          };
+        }
+      }
+
+      const parsed = this.parseJsonValue(paket, {});
+      const rawId = parsed?.id_paket ?? "";
+      const rawSurat = parsed?.no_surat_pesanan ?? "";
+      const id_paket = rawId || rawSurat || "";
+      const no_surat_pesanan = rawSurat || rawId || "";
+
+      return { id_paket, no_surat_pesanan };
+    },
+
+    ensureOrderExtras(order = {}) {
+      const paket = this.normalizePaket(order.paket);
+      const kontrak = this.parseJsonValue(order.kontrak, []);
+      const invoice = this.parseJsonValue(order.invoice, []);
+      const ba = this.parseJsonValue(order.ba, []);
+
+      return {
+        ...order,
+        paket,
+        kontrak: Array.isArray(kontrak) ? kontrak : [],
+        invoice: Array.isArray(invoice) ? invoice : [],
+        ba: Array.isArray(ba) ? ba : [],
+        drive_link: order.drive_link || "",
+      };
     },
 
     parseJsonValue(value, fallback) {
@@ -1982,12 +2157,42 @@ function app() {
             contract_value: 0,
             status: "draft",
             notes: "",
+            paket: { id_paket: "", no_surat_pesanan: "" },
+            kontrak: [
+              {
+                no: "",
+                kode_kontrak: "",
+                kode_bidang: "",
+                bulan: "",
+                tahun: "",
+                tgl: "",
+                nilai_kwitansi: 0,
+              },
+            ],
+            invoice: [{ no: "", tgl: "", nilai_invoice: 0 }],
+            drive_link: "",
+            ba: [
+              {
+                no: "",
+                kode_ba: "",
+                kode_bidang: "",
+                bulan: "",
+                tahun: "",
+                tgl: "",
+                nilai: 0,
+              },
+            ],
+            subkegiatan_id: null,
           };
           
           data.vendorSearchInput = "";
           data.selectedVendor = null;
           data.filteredVendors = [];
           data.showVendorDropdown = false;
+          data.subkegiatanSearchInput = "";
+          data.selectedSubkegiatan = null;
+          data.filteredSubkegiatans = [];
+          data.showSubkegiatanDropdown = false;
           data.formError = "";
           
           // Force Alpine to recognize the change by replacing the object reference
